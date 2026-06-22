@@ -1,0 +1,51 @@
+@model IReadOnlyList<BahceFiyatTakip.Models.Product>
+
+@{
+    ViewData["Title"] = "Urunler";
+}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0">Urunler</h1>
+    <a class="btn btn-success" asp-action="Create">Yeni Urun</a>
+</div>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+
+<div class="panel-section">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Urun</th>
+                    <th>Kategori</th>
+                    <th>Birim</th>
+                    <th>Cesit</th>
+                    <th>Durum</th>
+                    <th class="text-end">Islem</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var product in Model)
+            {
+                <tr>
+                    <td>@product.Name</td>
+                    <td>@product.Category</td>
+                    <td>@product.Unit</td>
+                    <td>@product.Varieties.Count</td>
+                    <td>
+                        <span class="badge @(product.IsActive ? "text-bg-success" : "text-bg-secondary")">
+                            @(product.IsActive ? "Aktif" : "Pasif")
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@product.Id">Duzenle</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

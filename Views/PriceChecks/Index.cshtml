@@ -1,0 +1,23 @@
+@{
+    ViewData["Title"] = "Fiyat Kontrol";
+}
+
+<h1 class="h3 mb-4">Fiyat Kontrol</h1>
+
+<div class="panel-section">
+    <form asp-action="Check" method="post" class="row g-3 align-items-end">
+        <div class="col-md-8">
+            <label class="form-label">Urun</label>
+            <select name="productId" class="form-select" asp-items="ViewBag.Products" required>
+                <option value="">Urun secin</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-success w-100">Canli Fiyatlari Cek</button>
+        </div>
+    </form>
+</div>
+
+<div class="alert alert-info mt-3">
+    Canli kaynak okunamazsa ilgili market icin mock yedek fiyat kaydedilir.
+</div>

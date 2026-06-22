@@ -1,0 +1,31 @@
+@model BahceFiyatTakip.Models.Product
+
+<div class="panel-section">
+    <form asp-action="@ViewContext.RouteData.Values["action"]" method="post" class="row g-3">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="CreatedAt" />
+        <div class="col-md-6">
+            <label asp-for="Name" class="form-label"></label>
+            <input asp-for="Name" class="form-control" placeholder="Portakal" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Category" class="form-label"></label>
+            <input asp-for="Category" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Unit" class="form-label"></label>
+            <input asp-for="Unit" class="form-control" />
+        </div>
+        <div class="col-12">
+            <div class="form-check">
+                <input asp-for="IsActive" class="form-check-input" />
+                <label asp-for="IsActive" class="form-check-label"></label>
+            </div>
+        </div>
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-success">Kaydet</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Vazgec</a>
+        </div>
+    </form>
+</div>

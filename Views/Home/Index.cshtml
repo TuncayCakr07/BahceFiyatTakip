@@ -1,0 +1,98 @@
+@model BahceFiyatTakip.ViewModels.DashboardViewModel
+
+@{
+    ViewData["Title"] = "Panel";
+}
+
+<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Bahce Fiyat Takip Paneli</h1>
+        <p class="text-muted mb-0">Urunlerinizi girin, market fiyatlarini canli kaynaktan cekin ve gecmisi izleyin.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-success" asp-controller="Products" asp-action="Create">Yeni Urun</a>
+        <a class="btn btn-outline-success" asp-controller="PriceChecks" asp-action="Index">Fiyat Kontrol</a>
+    </div>
+</div>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="summary-box">
+            <span>Aktif Urun</span>
+            <strong>@Model.ProductCount</strong>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="summary-box">
+            <span>Market</span>
+            <strong>@Model.MarketCount</strong>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="summary-box">
+            <span>Fiyat Kaydi</span>
+            <strong>@Model.PriceRecordCount</strong>
+        </div>
+    </div>
+</div>
+
+<div class="panel-section">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h2 class="h5 mb-0">Son Fiyatlar</h2>
+        <a asp-controller="PriceChecks" asp-action="History">Tumunu gor</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Urun</th>
+                    <th>Cesit</th>
+                    <th>Market</th>
+                    <th>Resim</th>
+                    <th>Kg Fiyati</th>
+                    <th>Tarih</th>
+                    <th>Kaynak</th>
+                    <th>Guven</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.LatestPrices.Any())
+            {
+                foreach (var item in Model.LatestPrices)
+                {
+                    <tr>
+                        <td>@item.Product.Name</td>
+                        <td>@(item.ProductVariety?.Name ?? "-")</td>
+                        <td>@item.Market.Name</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                            {
+                                <img src="@item.ImageUrl" alt="@item.MatchedTitle" class="product-thumb" />
+                            }
+                        </td>
+                        <td>@item.PricePerKg.ToString("N2") TL</td>
+                        <td>@item.CheckedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>
+                            <span class="badge @(item.IsLive ? "text-bg-success" : "text-bg-secondary")">
+                                @(item.IsLive ? "Canli" : "Mock")
+                            </span>
+                        </td>
+                        <td>@item.ConfidenceScore</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="8" class="text-muted">Henuz fiyat kaydi yok.</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

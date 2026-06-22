@@ -1,0 +1,106 @@
+@model BahceFiyatTakip.ViewModels.PriceHistoryViewModel
+
+@{
+    ViewData["Title"] = "Fiyat Gecmisi";
+}
+
+<h1 class="h3 mb-4">Fiyat Gecmisi</h1>
+
+@if (TempData["Message"] is string message)
+{
+    <div class="alert alert-success">@message</div>
+}
+
+<div class="panel-section mb-4">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Urun</label>
+            <select name="productId" class="form-select">
+                <option value="">Tum urunler</option>
+                @foreach (var product in Model.Products)
+                {
+                    <option value="@product.Id" selected="@(Model.ProductId == product.Id)">@product.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Market</label>
+            <select name="marketId" class="form-select">
+                <option value="">Tum marketler</option>
+                @foreach (var market in Model.Markets)
+                {
+                    <option value="@market.Id" selected="@(Model.MarketId == market.Id)">@market.Name</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Baslangic</label>
+            <input type="date" name="startDate" value="@Model.StartDate?.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Bitis</label>
+            <input type="date" name="endDate" value="@Model.EndDate?.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-success w-100">Filtrele</button>
+        </div>
+    </form>
+</div>
+
+<div class="panel-section">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Urun</th>
+                    <th>Cesit</th>
+                    <th>Market</th>
+                    <th>Resim</th>
+                    <th>Kg Fiyati</th>
+                    <th>Tarih</th>
+                    <th>Kaynak</th>
+                    <th>Guven</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Records.Any())
+            {
+                foreach (var item in Model.Records)
+                {
+                    <tr>
+                        <td>@item.Product.Name</td>
+                        <td>
+                            <div>@(item.ProductVariety?.Name ?? "-")</div>
+                            @if (!string.IsNullOrWhiteSpace(item.MatchedTitle))
+                            {
+                                <small class="text-muted">@item.MatchedTitle</small>
+                            }
+                        </td>
+                        <td>@item.Market.Name</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                            {
+                                <img src="@item.ImageUrl" alt="@item.MatchedTitle" class="product-thumb" />
+                            }
+                        </td>
+                        <td>@item.PricePerKg.ToString("N2") TL</td>
+                        <td>@item.CheckedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td>
+                            <span class="badge @(item.IsLive ? "text-bg-success" : "text-bg-secondary")">
+                                @(item.IsLive ? "Canli" : "Mock")
+                            </span>
+                        </td>
+                        <td>@item.ConfidenceScore</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="8" class="text-muted">Secili filtreler icin kayit bulunamadi.</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
