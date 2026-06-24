@@ -41,7 +41,13 @@ public class LiveMarketPriceProvider(
         IReadOnlyList<SearchTarget> targets,
         CancellationToken cancellationToken)
     {
-        foreach (var target in targets.Take(3))
+        using var marketCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        marketCts.CancelAfter(TimeSpan.FromSeconds(10));
+        var ct = marketCts.Token;
+
+        try
+        {
+        foreach (var target in targets.Take(2))
         {
             var searchUrl = BuildSearchUrl(market, target.Query);
 
@@ -50,7 +56,7 @@ public class LiveMarketPriceProvider(
                 using var request = new HttpRequestMessage(HttpMethod.Get, searchUrl);
                 AddBrowserHeaders(request, market.BaseUrl);
 
-                using var response = await httpClient.SendAsync(request, cancellationToken);
+                using var response = await httpClient.SendAsync(request, ct);
 
                 string content;
 
@@ -60,7 +66,7 @@ public class LiveMarketPriceProvider(
                     if (playwrightFetcher.IsAvailable &&
                         ((int)response.StatusCode == 403 || (int)response.StatusCode == 429))
                     {
-                        var rendered = await playwrightFetcher.FetchAsync(searchUrl, cancellationToken);
+                        var rendered = await playwrightFetcher.FetchAsync(searchUrl, ct);
                         if (rendered is null || rendered.Length < 5_000)
                         {
                             logger.LogWarning(
@@ -83,13 +89,13 @@ public class LiveMarketPriceProvider(
                 }
                 else
                 {
-                    content = await response.Content.ReadAsStringAsync(cancellationToken);
+                    content = await response.Content.ReadAsStringAsync(ct);
                 }
 
                 // Sayfa çok küçükse (JS SPA shell) → direkt Playwright dene
                 if (content.Length < 8_000 && playwrightFetcher.IsAvailable)
                 {
-                    var rendered = await playwrightFetcher.FetchAsync(searchUrl, cancellationToken);
+                    var rendered = await playwrightFetcher.FetchAsync(searchUrl, ct);
                     if (rendered is not null && rendered.Length > content.Length)
                     {
                         content = rendered;
@@ -101,7 +107,7 @@ public class LiveMarketPriceProvider(
                 // Büyük sayfa geldi ama ürün bulunamadı → Playwright ile JS render edilmiş hali dene
                 if (candidates.Count == 0 && content.Length >= 8_000 && playwrightFetcher.IsAvailable)
                 {
-                    var rendered = await playwrightFetcher.FetchAsync(searchUrl, cancellationToken);
+                    var rendered = await playwrightFetcher.FetchAsync(searchUrl, ct);
                     if (rendered is not null && rendered.Length > 5_000)
                     {
                         var playwrightCandidates = ExtractCandidates(rendered, market, searchUrl);
@@ -143,6 +149,12 @@ public class LiveMarketPriceProvider(
         }
 
         return null;
+        }
+        catch (OperationCanceledException) when (marketCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning("{Market} 10 saniye limitini asti, atlanıyor.", market.Name);
+            return null;
+        }
     }
 
     private static IReadOnlyList<SearchTarget> BuildSearchTargets(Product product)

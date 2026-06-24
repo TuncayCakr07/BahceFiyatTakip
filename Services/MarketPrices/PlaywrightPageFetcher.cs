@@ -64,12 +64,9 @@ public sealed class PlaywrightPageFetcher : IAsyncDisposable
 
             await page.GotoAsync(url, new PageGotoOptions
             {
-                Timeout = 20_000,
-                WaitUntil = WaitUntilState.NetworkIdle
+                Timeout = 6_000,
+                WaitUntil = WaitUntilState.DOMContentLoaded
             });
-
-            // Ürün kartlarının yüklenmesini bekle
-            await page.WaitForTimeoutAsync(1500);
 
             return await page.ContentAsync();
         }
