@@ -12,111 +12,173 @@
         if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} sa önce";
         return $"{(int)diff.TotalDays} gün önce";
     }
+
+    string ProductEmoji(string name) => name.ToLower() switch
+    {
+        var n when n.Contains("mandalina") => "🍊",
+        var n when n.Contains("limon otu") => "🌿",
+        var n when n.Contains("limon")     => "🍋",
+        var n when n.Contains("lime")      => "🍈",
+        var n when n.Contains("portakal")  => "🍊",
+        var n when n.Contains("avokado")   => "🥑",
+        var n when n.Contains("nar")       => "🫐",
+        var n when n.Contains("ejder")     => "🐲",
+        var n when n.Contains("çarkıfelek") || n.Contains("carkifelek") => "🌺",
+        var n when n.Contains("mango")     => "🥭",
+        var n when n.Contains("domates")   => "🍅",
+        var n when n.Contains("finger")    => "🟢",
+        _ => "🍃"
+    };
 }
 
 @if (TempData["Message"] is string message)
 {
-    <div class="alert alert-success mb-4">@message</div>
+    <div class="dash-alert">@message</div>
 }
 
-<div class="stat-grid mb-4">
-    <div class="stat-card">
-        <span class="stat-label">Ürün</span>
-        <span class="stat-value">@Model.ProductCount</span>
+<!-- STATS -->
+<div class="stats-row">
+    <div class="stat-tile">
+        <div class="stat-icon">🛒</div>
+        <div class="stat-body">
+            <div class="stat-num">@Model.ProductCount</div>
+            <div class="stat-lbl">Ürün</div>
+        </div>
     </div>
-    <div class="stat-card">
-        <span class="stat-label">Aktif Market</span>
-        <span class="stat-value">@Model.MarketCount</span>
+    <div class="stat-tile">
+        <div class="stat-icon">🏪</div>
+        <div class="stat-body">
+            <div class="stat-num">@Model.MarketCount</div>
+            <div class="stat-lbl">Aktif Market</div>
+        </div>
     </div>
-    <div class="stat-card">
-        <span class="stat-label">Fiyat Kaydı</span>
-        <span class="stat-value">@Model.PriceRecordCount</span>
+    <div class="stat-tile">
+        <div class="stat-icon">📊</div>
+        <div class="stat-body">
+            <div class="stat-num">@Model.PriceRecordCount</div>
+            <div class="stat-lbl">Fiyat Kaydı</div>
+        </div>
+    </div>
+    <div class="stat-tile stat-tile--accent">
+        <div class="stat-icon">💡</div>
+        <div class="stat-body">
+            <div class="stat-num">@Model.ProductSummaries.Count(s => s.Prices.Count > 0)</div>
+            <div class="stat-lbl">Fiyat Bulunan</div>
+        </div>
     </div>
 </div>
 
-<div class="section-header">
-    <h2>Fiyat Karşılaştırma</h2>
-    <a asp-controller="PriceChecks" asp-action="History" style="font-size:.85rem;color:var(--green);text-decoration:none;">Tüm geçmiş →</a>
+<!-- HEADER BAR -->
+<div class="dash-header">
+    <div>
+        <h2 class="dash-title">Fiyat Karşılaştırma</h2>
+        <p class="dash-sub">Son piyasa fiyatları — marketler arası karşılaştırma</p>
+    </div>
+    <a asp-controller="PriceChecks" asp-action="History" class="link-history">Geçmişi Gör →</a>
 </div>
 
-<div class="product-grid">
+<!-- PRODUCT GRID -->
+<div class="pcard-grid">
 @foreach (var summary in Model.ProductSummaries)
 {
-    <div class="product-card">
-        <div class="product-card-header">
-            <div>
-                <p class="product-name">@summary.Product.Name</p>
-                @if (summary.LastChecked.HasValue)
-                {
-                    <span class="last-updated">Son güncelleme: @TimeAgo(summary.LastChecked)</span>
-                }
+    var emoji = ProductEmoji(summary.Product.Name);
+    var hasPrice = summary.Prices.Count > 0;
+
+    <div class="pcard @(hasPrice ? "" : "pcard--empty")">
+
+        <!-- Card header -->
+        <div class="pcard-head">
+            <div class="pcard-ident">
+                <span class="pcard-emoji">@emoji</span>
+                <div>
+                    <div class="pcard-name">@summary.Product.Name</div>
+                    @if (summary.LastChecked.HasValue)
+                    {
+                        <div class="pcard-time">@TimeAgo(summary.LastChecked)</div>
+                    }
+                </div>
             </div>
-            <form asp-controller="PriceChecks" asp-action="Check" method="post" class="d-inline">
+            <form asp-controller="PriceChecks" asp-action="Check" method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="productId" value="@summary.Product.Id" />
-                <button type="submit" class="btn-refresh" onclick="startLoading(this)">
-                    <span class="spinner"></span>
-                    <span class="btn-text">⟳ Güncelle</span>
+                <button type="submit" class="btn-upd" onclick="startLoading(this)">
+                    <svg class="upd-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                    <span class="upd-text">Güncelle</span>
                 </button>
             </form>
         </div>
 
-        @if (summary.Prices.Count > 0)
+        @if (hasPrice)
         {
-            <div class="price-rows">
-                @for (int i = 0; i < summary.Prices.Count; i++)
-                {
-                    var rec = summary.Prices[i];
-                    bool isCheapest = i == 0;
-                    <div class="price-row @(isCheapest ? "cheapest" : "")">
-                        <span class="price-rank">#@(i + 1)</span>
-
-                        <div class="market-info">
-                            <div class="market-name">
-                                @rec.Market.Name
-                                @if (isCheapest)
-                                {
-                                    <span class="cheapest-badge ms-1">✓ En Ucuz</span>
-                                }
-                            </div>
-                            @if (rec.ProductVariety is not null)
-                            {
-                                <div class="variety-name">@rec.ProductVariety.Name</div>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(rec.MatchedTitle))
-                            {
-                                <div class="variety-name text-truncate" style="max-width:200px" title="@rec.MatchedTitle">@rec.MatchedTitle</div>
-                            }
-                        </div>
-
-                        @if (!string.IsNullOrWhiteSpace(rec.ImageUrl))
+            <!-- Cheapest highlight -->
+            var best = summary.Cheapest!;
+            <div class="pcard-best">
+                <div class="best-left">
+                    @if (!string.IsNullOrWhiteSpace(best.ImageUrl))
+                    {
+                        <img src="@best.ImageUrl" alt="" class="best-img" />
+                    }
+                    <div>
+                        <div class="best-market">@best.Market.Name</div>
+                        @if (!string.IsNullOrWhiteSpace(best.MatchedTitle))
                         {
-                            <img src="@rec.ImageUrl" alt="@rec.MatchedTitle" class="product-thumb" />
-                        }
-
-                        <div class="price-display">
-                            <div class="price-value">@rec.PricePerKg.ToString("N2") ₺</div>
-                            <div class="price-unit">/ kg</div>
-                        </div>
-
-                        @if (!string.IsNullOrWhiteSpace(rec.SourceUrl))
-                        {
-                            <a href="@rec.SourceUrl" target="_blank" class="price-link" title="Ürüne git">↗</a>
+                            <div class="best-title">@best.MatchedTitle</div>
                         }
                     </div>
+                </div>
+                <div class="best-right">
+                    <div class="best-price">@best.PricePerKg.ToString("N2") <span>₺</span></div>
+                    <div class="best-badge">En Ucuz</div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(best.SourceUrl))
+                {
+                    <a href="@best.SourceUrl" target="_blank" class="best-link" title="Ürüne git">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                            <polyline points="15 3 21 3 21 9"/>
+                            <line x1="10" y1="14" x2="21" y2="3"/>
+                        </svg>
+                    </a>
                 }
             </div>
+
+            @if (summary.Prices.Count > 1)
+            {
+                <!-- Other markets -->
+                <div class="pcard-others">
+                    @foreach (var rec in summary.Prices.Skip(1))
+                    {
+                        <div class="other-row">
+                            <span class="other-market">@rec.Market.Name</span>
+                            @if (!string.IsNullOrWhiteSpace(rec.MatchedTitle))
+                            {
+                                <span class="other-title">@rec.MatchedTitle</span>
+                            }
+                            <span class="other-price">@rec.PricePerKg.ToString("N2") ₺</span>
+                            @if (!string.IsNullOrWhiteSpace(rec.SourceUrl))
+                            {
+                                <a href="@rec.SourceUrl" target="_blank" class="other-link">↗</a>
+                            }
+                        </div>
+                    }
+                </div>
+            }
         }
         else
         {
-            <div class="no-price-msg">
-                Henüz fiyat yok —
-                <form asp-controller="PriceChecks" asp-action="Check" method="post" class="d-inline">
+            <div class="pcard-nodata">
+                <div class="nodata-icon">📭</div>
+                <div class="nodata-msg">Fiyat bulunamadı</div>
+                <form asp-controller="PriceChecks" asp-action="Check" method="post">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="productId" value="@summary.Product.Id" />
-                    <button type="submit" class="btn-refresh" style="display:inline-flex" onclick="startLoading(this)">
-                        <span class="spinner"></span>
-                        <span class="btn-text">Şimdi çek</span>
+                    <button type="submit" class="btn-fetch" onclick="startLoading(this)">
+                        <svg class="upd-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                        </svg>
+                        <span class="upd-text">Şimdi Çek</span>
                     </button>
                 </form>
             </div>
@@ -129,7 +191,10 @@
 <script>
 function startLoading(btn) {
     btn.disabled = true;
-    btn.classList.add('loading');
+    const spinner = btn.querySelector('.upd-spinner');
+    const text    = btn.querySelector('.upd-text');
+    if (spinner) spinner.style.display = 'block';
+    if (text)    text.textContent = 'Yükleniyor…';
 }
 </script>
 }

@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -6,928 +6,565 @@ using BahceFiyatTakip.Models;
 
 namespace BahceFiyatTakip.Services.MarketPrices;
 
-public class LiveMarketPriceProvider(
+/// <summary>
+/// Marketlerin JSON API'lerine direkt istek atar.
+/// HTML scraping yok, tarayıcı yok.
+/// </summary>
+public partial class LiveMarketPriceProvider(
     HttpClient httpClient,
-    PlaywrightPageFetcher playwrightFetcher,
     ILogger<LiveMarketPriceProvider> logger) : IMarketPriceProvider
 {
-    private const int MinimumConfidenceScore = 60;
-
-    public string ProviderName => "LiveHttp";
+    public string ProviderName => "MarketJson";
 
     public async Task<IReadOnlyList<MarketPriceResult>> GetPricesAsync(
         Product product,
         IReadOnlyList<Market> markets,
         CancellationToken cancellationToken = default)
     {
-        var targets = BuildSearchTargets(product);
+        var targets = BuildTargets(product);
 
         var tasks = markets
-            .Where(market => market.IsActive && !string.IsNullOrWhiteSpace(market.SearchUrlTemplate))
-            .Select(market => TryGetMarketPriceAsync(product, market, targets, cancellationToken));
+            .Where(m => m.IsActive && !string.IsNullOrWhiteSpace(m.SearchUrlTemplate))
+            .Select(m => FetchMarketAsync(product, m, targets, cancellationToken));
 
-        var allResults = await Task.WhenAll(tasks);
+        var results = await Task.WhenAll(tasks);
 
-        return allResults
-            .Where(result => result is not null)
-            .Select(result => result!)
-            .OrderBy(result => result.MarketName)
+        return results
+            .Where(r => r is not null)
+            .Select(r => r!)
+            .OrderBy(r => r.MarketName)
             .ToList();
     }
 
-    private async Task<MarketPriceResult?> TryGetMarketPriceAsync(
+    // ── PER-MARKET FETCH ─────────────────────────────────────────────────────
+
+    private async Task<MarketPriceResult?> FetchMarketAsync(
         Product product,
         Market market,
         IReadOnlyList<SearchTarget> targets,
         CancellationToken cancellationToken)
     {
-        using var marketCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        marketCts.CancelAfter(TimeSpan.FromSeconds(10));
-        var ct = marketCts.Token;
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(3));
 
         try
         {
-        foreach (var target in targets.Take(2))
-        {
-            var searchUrl = BuildSearchUrl(market, target.Query);
-
-            try
+            bool marketSupportsJson = true;
+            foreach (var target in targets.Take(2))
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, searchUrl);
-                AddBrowserHeaders(request, market.BaseUrl);
-
-                using var response = await httpClient.SendAsync(request, ct);
-
-                string content;
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    // 403/blocked → Playwright ile dene
-                    if (playwrightFetcher.IsAvailable &&
-                        ((int)response.StatusCode == 403 || (int)response.StatusCode == 429))
-                    {
-                        var rendered = await playwrightFetcher.FetchAsync(searchUrl, ct);
-                        if (rendered is null || rendered.Length < 5_000)
-                        {
-                            logger.LogWarning(
-                                "{Market} okunamadi (Playwright da basarisiz). Status: {StatusCode}",
-                                market.Name,
-                                response.StatusCode);
-                            continue;
-                        }
-                        content = rendered;
-                    }
-                    else
-                    {
-                        logger.LogWarning(
-                            "{Market} okunamadi. Status: {StatusCode}. Url: {Url}",
-                            market.Name,
-                            response.StatusCode,
-                            searchUrl);
-                        continue;
-                    }
-                }
-                else
-                {
-                    content = await response.Content.ReadAsStringAsync(ct);
-                }
-
-                // Sayfa çok küçükse (JS SPA shell) → direkt Playwright dene
-                if (content.Length < 8_000 && playwrightFetcher.IsAvailable)
-                {
-                    var rendered = await playwrightFetcher.FetchAsync(searchUrl, ct);
-                    if (rendered is not null && rendered.Length > content.Length)
-                    {
-                        content = rendered;
-                    }
-                }
-
-                var candidates = ExtractCandidates(content, market, searchUrl);
-
-                // Büyük sayfa geldi ama ürün bulunamadı → Playwright ile JS render edilmiş hali dene
-                if (candidates.Count == 0 && content.Length >= 8_000 && playwrightFetcher.IsAvailable)
-                {
-                    var rendered = await playwrightFetcher.FetchAsync(searchUrl, ct);
-                    if (rendered is not null && rendered.Length > 5_000)
-                    {
-                        var playwrightCandidates = ExtractCandidates(rendered, market, searchUrl);
-                        if (playwrightCandidates.Count > 0)
-                        {
-                            candidates = playwrightCandidates;
-                        }
-                    }
-                }
-
-                var bestCandidate = FindBestCandidate(candidates, product, target);
-
-                if (bestCandidate is null)
-                {
-                    logger.LogWarning(
-                        "{Market} icin uygun canli urun bulunamadi. Query: {Query}",
-                        market.Name,
-                        target.Query);
-
-                    continue;
-                }
-
-                return new MarketPriceResult(
-                    market.Id,
-                    market.Name,
-                    bestCandidate.Price.GetValueOrDefault(),
-                    bestCandidate.Url ?? searchUrl,
-                    ProviderName,
-                    IsLive: true,
-                    ProductVarietyId: target.ProductVarietyId,
-                    MatchedTitle: bestCandidate.Title,
-                    ImageUrl: bestCandidate.ImageUrl,
-                    ConfidenceScore: bestCandidate.ConfidenceScore);
+                if (!marketSupportsJson) break;
+                var url = BuildUrl(market.SearchUrlTemplate!, target.Query);
+                var (result, hasJson) = await FetchOneAsync(product, market, target, url, cts.Token);
+                marketSupportsJson = hasJson;
+                if (result is not null)
+                    return result;
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException or JsonException)
-            {
-                logger.LogWarning(ex, "{Market} icin canli fiyat cekilemedi. Query: {Query}", market.Name, target.Query);
-            }
-        }
 
-        return null;
+            return null;
         }
-        catch (OperationCanceledException) when (marketCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning("{Market} 10 saniye limitini asti, atlanıyor.", market.Name);
+            logger.LogWarning("{Market} 3 saniye limitini aştı.", market.Name);
             return null;
         }
     }
 
-    private static IReadOnlyList<SearchTarget> BuildSearchTargets(Product product)
-    {
-        var varietyTargets = product.Varieties
-            .Where(variety => variety.IsActive)
-            .SelectMany(variety =>
-                variety.SearchAliases
-                    .OrderBy(alias => alias.Priority)
-                    .Take(1)
-                    .Select(alias => new SearchTarget(
-                        variety.Id,
-                        alias.Query,
-                        $"{variety.Name} {product.Name}",
-                        variety.Name,
-                        product.Name)))
-            .ToList();
-
-        if (varietyTargets.Count > 0)
-        {
-            return varietyTargets;
-        }
-
-        return
-        [
-            new SearchTarget(
-                null,
-                product.Name,
-                product.Name,
-                product.Name,
-                product.Name)
-        ];
-    }
-
-    private static void AddBrowserHeaders(HttpRequestMessage request, string? baseUrl)
-    {
-        request.Headers.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
-        request.Headers.AcceptLanguage.ParseAdd("tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7");
-        request.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7");
-
-        if (!string.IsNullOrWhiteSpace(baseUrl))
-        {
-            request.Headers.Referrer = new Uri(baseUrl);
-        }
-    }
-
-    private static string BuildSearchUrl(Market market, string productName)
-    {
-        var encodedProduct = WebUtility.UrlEncode(productName);
-
-        return string.Format(
-            CultureInfo.InvariantCulture,
-            market.SearchUrlTemplate!,
-            encodedProduct);
-    }
-
-    private static List<ProductCandidate> ExtractCandidates(string content, Market market, string sourceUrl)
-    {
-        var candidates = new List<ProductCandidate>();
-
-        if (LooksLikeJson(content))
-        {
-            ExtractFromJson(content, candidates, market, sourceUrl);
-        }
-
-        foreach (Match match in ScriptJsonRegex().Matches(content))
-        {
-            var json = WebUtility.HtmlDecode(match.Groups["json"].Value.Trim());
-            ExtractFromJson(json, candidates, market, sourceUrl);
-        }
-
-        foreach (Match match in NextDataRegex().Matches(content))
-        {
-            var json = WebUtility.HtmlDecode(match.Groups["json"].Value.Trim());
-            ExtractFromJson(json, candidates, market, sourceUrl);
-        }
-
-        ExtractFromHtmlBlocks(content, candidates, market, sourceUrl);
-
-        return candidates
-            .Where(candidate => candidate.Price.HasValue)
-            .GroupBy(candidate => NormalizeTurkish(candidate.Title) + "|" + candidate.Price)
-            .Select(group => group.First())
-            .ToList();
-    }
-
-    private static ProductCandidate? FindBestCandidate(
-        List<ProductCandidate> candidates,
+    // Returns (result, hasJson): hasJson=false means the market returned non-JSON, skip further queries
+    private async Task<(MarketPriceResult? Result, bool HasJson)> FetchOneAsync(
         Product product,
-        SearchTarget target)
+        Market market,
+        SearchTarget target,
+        string url,
+        CancellationToken ct)
     {
-        foreach (var candidate in candidates)
+        try
         {
-            candidate.ConfidenceScore = CalculateConfidence(candidate, product, target);
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            SetHeaders(req, market.BaseUrl);
+
+            using var resp = await httpClient.SendAsync(req, ct);
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                logger.LogInformation("{Market}: HTTP {Code}. Query: {Q}", market.Name, (int)resp.StatusCode, target.Query);
+                return (null, false);
+            }
+
+            var body = await resp.Content.ReadAsStringAsync(ct);
+
+            // Detect JSON capability: only pure-JSON APIs support multi-query retry
+            var trimmed = body.TrimStart();
+            bool isPureJson = trimmed.StartsWith('{') || trimmed.StartsWith('[');
+            bool hasEmbeddedJson = !isPureJson && (NextDataRegex().IsMatch(body) || LdJsonRegex().IsMatch(body));
+
+            if (!isPureJson && !hasEmbeddedJson)
+            {
+                logger.LogInformation("{Market}: HTML yanıt (JSON yok), atlanıyor. Query: {Q}", market.Name, target.Query);
+                return (null, false);
+            }
+
+            // isPureJson = supports retry; hasEmbeddedJson = one-shot only
+            bool hasJson = isPureJson;
+
+            var items = ExtractItems(body, market, url);
+
+            if (items.Count == 0)
+            {
+                logger.LogInformation("{Market}: JSON'dan ürün çıkarılamadı. Query: {Q}", market.Name, target.Query);
+                return (null, hasJson);
+            }
+
+            var best = PickBest(items, product, target);
+            if (best is null)
+            {
+                logger.LogInformation("{Market}: eşleşen ürün bulunamadı. Query: {Q}", market.Name, target.Query);
+                return (null, hasJson);
+            }
+
+            logger.LogInformation("{Market}: '{Title}' → {Price} TL (score:{Score})", market.Name, best.Title, best.Price, best.Score);
+
+            return (new MarketPriceResult(
+                market.Id, market.Name,
+                best.Price,
+                best.Url ?? url,
+                ProviderName,
+                IsLive: true,
+                ProductVarietyId: target.VarietyId,
+                MatchedTitle: best.Title,
+                ImageUrl: best.ImageUrl,
+                ConfidenceScore: best.Score), hasJson);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException or JsonException)
+        {
+            logger.LogWarning(ex, "{Market}: istek hatası. Query: {Q}", market.Name, target.Query);
+            return (null, false);
+        }
+    }
+
+    // ── JSON EXTRACTION ──────────────────────────────────────────────────────
+
+    private static List<Candidate> ExtractItems(string body, Market market, string sourceUrl)
+    {
+        var items = new List<Candidate>();
+        var trimmed = body.TrimStart();
+
+        // Market-specific fast paths
+        if (market.Name.Equals("Migros", StringComparison.OrdinalIgnoreCase)
+            && (trimmed.StartsWith('{') || trimmed.StartsWith('[')))
+        {
+            ExtractMigros(body, items, market.BaseUrl, sourceUrl);
+            return items;
         }
 
-        var minPrice = IsFreshProduceProduct(product) ? 10m : 5m;
+        // 1. Yanıt doğrudan JSON ise
+        if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
+        {
+            ParseJson(body, items, market.BaseUrl, sourceUrl, dividePrice: false);
+            if (items.Count > 0) return items;
+        }
+
+        // 2. Next.js __NEXT_DATA__ (SSR gömülü JSON)
+        var m = NextDataRegex().Match(body);
+        if (m.Success)
+        {
+            ParseJson(WebUtility.HtmlDecode(m.Groups["json"].Value), items, market.BaseUrl, sourceUrl, dividePrice: false);
+            if (items.Count > 0) return items;
+        }
+
+        // 3. JSON-LD (schema.org Product)
+        foreach (Match ld in LdJsonRegex().Matches(body))
+        {
+            ParseJson(WebUtility.HtmlDecode(ld.Groups["json"].Value), items, market.BaseUrl, sourceUrl, dividePrice: false);
+        }
+
+        return items;
+    }
+
+    // Migros: data.storeProductInfos[].{name, shownPrice (kuruş), images[0].urls.PRODUCT_LIST, prettyName, status}
+    private static void ExtractMigros(string json, List<Candidate> results, string? baseUrl, string sourceUrl)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json,
+                new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+
+            if (!doc.RootElement.TryGetProperty("data", out var data)) return;
+
+            JsonElement infos;
+            var found = data.TryGetProperty("storeProductInfos", out infos)
+                     || data.TryGetProperty("products",          out infos);
+            if (!found) return;
+
+            foreach (var el in infos.EnumerateArray())
+            {
+                var name = GetStr(el, "name", "productName");
+                if (string.IsNullOrWhiteSpace(name)) continue;
+
+                // shownPrice is in kuruş (e.g. 29995 = 299.95 TL); read raw int before NormalizePrice divides
+                decimal price = 0;
+                foreach (var pKey in new[] { "shownPrice", "regularPrice", "salePrice", "unitPrice" })
+                {
+                    if (el.TryGetProperty(pKey, out var pEl) && pEl.ValueKind == JsonValueKind.Number
+                        && pEl.TryGetDecimal(out var raw) && raw > 0)
+                    {
+                        price = raw >= 100 ? decimal.Round(raw / 100m, 2) : raw;
+                        break;
+                    }
+                }
+                if (price <= 0) continue;
+
+                var status  = GetStr(el, "status") ?? "";
+                var inStock = !status.Equals("OUT_OF_STOCK", StringComparison.OrdinalIgnoreCase)
+                           && !status.Equals("PASSIVE", StringComparison.OrdinalIgnoreCase);
+
+                var slug  = GetStr(el, "prettyName", "slug", "url");
+                var url   = slug is not null && !slug.StartsWith("http")
+                              ? $"https://www.migros.com.tr/{slug.TrimStart('/')}"
+                              : slug ?? sourceUrl;
+
+                string? img = null;
+                if (el.TryGetProperty("images", out var imgs) && imgs.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var imgEl in imgs.EnumerateArray())
+                    {
+                        if (imgEl.TryGetProperty("urls", out var urls))
+                        {
+                            img = GetStr(urls, "PRODUCT_LIST", "PRODUCT_DETAIL", "PRODUCT_HD");
+                            if (img is not null) break;
+                        }
+                        img ??= GetStr(imgEl, "url", "imageUrl");
+                        if (img is not null) break;
+                    }
+                }
+
+                results.Add(new Candidate(Clean(name), price, url, img, inStock));
+            }
+        }
+        catch (JsonException) { }
+    }
+
+    private static void ParseJson(string json, List<Candidate> results, string? baseUrl, string sourceUrl, bool dividePrice)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json,
+                new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+            Walk(doc.RootElement, results, baseUrl, sourceUrl, dividePrice, depth: 0);
+        }
+        catch (JsonException) { }
+    }
+
+    private static void Walk(JsonElement el, List<Candidate> results, string? baseUrl, string sourceUrl, bool dividePrice, int depth)
+    {
+        if (depth > 10) return;
+
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            var c = TryBuildCandidate(el, baseUrl, sourceUrl, dividePrice);
+            if (c is not null)
+                results.Add(c);
+
+            foreach (var prop in el.EnumerateObject())
+                Walk(prop.Value, results, baseUrl, sourceUrl, dividePrice, depth + 1);
+        }
+        else if (el.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var child in el.EnumerateArray())
+                Walk(child, results, baseUrl, sourceUrl, dividePrice, depth + 1);
+        }
+    }
+
+    private static Candidate? TryBuildCandidate(JsonElement el, string? baseUrl, string sourceUrl, bool dividePrice)
+    {
+        var name = GetStr(el, "name", "title", "productName", "displayName", "shortName", "seoName",
+                              "urunAdi", "productTitle", "itemName");
+
+        var rawPrice = GetPrice(el, "shownPrice", "salePrice", "discountedPrice", "unitPrice",
+                                    "price", "currentPrice", "listPrice", "normalPrice",
+                                    "amount", "value", "finalPrice");
+
+        if (string.IsNullOrWhiteSpace(name) || rawPrice is null or <= 0)
+            return null;
+
+        var price = dividePrice && rawPrice >= 100 ? decimal.Round(rawPrice.Value / 100m, 2) : decimal.Round(rawPrice.Value, 2);
+        if (price <= 0 || price > 9999) return null;
+
+        var url = Resolve(GetStr(el, "url", "productUrl", "link", "seoUrl", "slug", "detailPageUrl"), baseUrl) ?? sourceUrl;
+        var img = Resolve(GetStr(el, "imageUrl", "image", "pictureUrl", "picture", "thumbnail",
+                                      "squareImage", "img", "imageLink", "mainImage"), baseUrl);
+
+        var stockBool = GetBool(el, "inStock", "isInStock", "available", "isAvailable", "hasStock",
+                                     "availableForSale", "isActive");
+        var stockStr  = GetStr(el, "stockStatus", "availability", "stockText", "availabilityStatus");
+        var inStock   = stockBool ?? !IsOutOfStock(stockStr);
+
+        return new Candidate(Clean(name), price, url, img, inStock);
+    }
+
+    // ── BEST CANDIDATE SELECTION ─────────────────────────────────────────────
+
+    private static Candidate? PickBest(List<Candidate> candidates, Product product, SearchTarget target)
+    {
+        var prodNorm    = N(product.Name);
+        var queryNorm   = N(target.Query);
+        var varietyNorm = N(target.VarietyName);
+        var minPrice    = IsGrocery(product) ? 10m : 5m;
 
         return candidates
-            .Where(candidate =>
-                candidate.Price >= minPrice &&
-                candidate.Price <= 1500 &&
-                candidate.IsInStock &&
-                candidate.ConfidenceScore >= MinimumConfidenceScore &&
-                IsLikelyFreshProduceCandidate(candidate, product) &&
-                !LooksLikeWrongProduct(candidate.Title, product, target))
-            .OrderByDescending(candidate => candidate.ConfidenceScore)
-            .ThenBy(candidate => candidate.Price)
+            .Where(c => c.InStock)
+            .Where(c => c.Price >= minPrice && c.Price <= 5000)
+            .Where(c => !IsJunk(c.Title))
+            .Where(c => IsRelevant(c.Title, prodNorm, queryNorm))
+            .Select(c =>
+            {
+                c.Score = CalcScore(c.Title, prodNorm, queryNorm, varietyNorm);
+                return c;
+            })
+            .Where(c => c.Score >= 40)
+            .OrderByDescending(c => c.Score)
+            .ThenBy(c => c.Price)
             .FirstOrDefault();
     }
 
-    private static bool LooksLikeJson(string content)
+    private static int CalcScore(string title, string prodNorm, string queryNorm, string varietyNorm)
     {
-        var trimmed = content.TrimStart();
-        return trimmed.StartsWith('{') || trimmed.StartsWith('[');
+        var hay = N(title);
+        var s = 0;
+        if (ContainsWord(hay, prodNorm))                                              s += 40;
+        if (prodNorm != varietyNorm && ContainsWord(hay, varietyNorm))               s += 25;
+        if (prodNorm != queryNorm   && ContainsPhrase(hay, queryNorm))               s += 20;
+        if (Any(hay, "kg", "gr", "adet", "taze", "organik", "meyve", "sebze"))      s += 10;
+        if (Any(hay, "stok yok", "tukendi", "satis disi"))                           s -= 30;
+        return Math.Clamp(s, 0, 100);
     }
 
-    private static void ExtractFromJson(
-        string json,
-        List<ProductCandidate> candidates,
-        Market market,
-        string sourceUrl)
+    private static bool IsRelevant(string title, string prodNorm, string queryNorm)
     {
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            WalkJson(document.RootElement, candidates, market, sourceUrl);
-        }
-        catch (JsonException)
-        {
-            // HTML icindeki her script gecerli JSON olmayabilir. Sessizce atlanir.
-        }
+        var n = N(title);
+        return ContainsWord(n, prodNorm) || ContainsPhrase(n, queryNorm);
     }
 
-    private static void WalkJson(
-        JsonElement element,
-        List<ProductCandidate> candidates,
-        Market market,
-        string sourceUrl)
+    // Word-boundary match: "nar" must not be part of "narenciye"
+    private static bool ContainsWord(string hay, string word)
     {
-        if (element.ValueKind == JsonValueKind.Object)
+        if (string.IsNullOrEmpty(word)) return false;
+        var idx = hay.IndexOf(word, StringComparison.Ordinal);
+        while (idx >= 0)
         {
-            var candidate = CandidateFromJsonObject(element, market, sourceUrl);
-
-            if (candidate is not null)
-            {
-                candidates.Add(candidate);
-            }
-
-            foreach (var property in element.EnumerateObject())
-            {
-                WalkJson(property.Value, candidates, market, sourceUrl);
-            }
+            bool startOk = idx == 0         || !char.IsLetter(hay[idx - 1]);
+            bool endOk   = idx + word.Length == hay.Length || !char.IsLetter(hay[idx + word.Length]);
+            if (startOk && endOk) return true;
+            idx = hay.IndexOf(word, idx + 1, StringComparison.Ordinal);
         }
-        else if (element.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in element.EnumerateArray())
-            {
-                WalkJson(item, candidates, market, sourceUrl);
-            }
-        }
-    }
-
-    private static ProductCandidate? CandidateFromJsonObject(JsonElement element, Market market, string sourceUrl)
-    {
-        var title = FirstString(element,
-            "name", "title", "productName", "displayName", "shortName", "seoName", "item_name");
-
-        var price = FirstPrice(element,
-            "price", "salePrice", "discountedPrice", "unitPrice", "shownPrice", "currentPrice", "amount", "value");
-
-        if (string.IsNullOrWhiteSpace(title) || !price.HasValue)
-        {
-            return null;
-        }
-
-        var stockText = FirstString(element,
-            "stockStatus", "stockText", "availability", "availableForSale", "isAvailable", "inStock", "hasStock");
-
-        var explicitStock = FirstBool(element, "inStock", "isInStock", "available", "isAvailable", "hasStock", "availableForSale");
-        var isInStock = explicitStock ?? !IsOutOfStockText(stockText ?? title);
-
-        return new ProductCandidate
-        {
-            Title = CleanText(title),
-            Price = price.Value,
-            Url = ResolveUrl(FirstString(element, "url", "productUrl", "link", "seoUrl"), market.BaseUrl) ?? sourceUrl,
-            ImageUrl = ResolveUrl(FirstString(element, "image", "imageUrl", "picture", "pictureUrl", "thumbnail", "thumbnailUrl"), market.BaseUrl),
-            IsInStock = isInStock,
-            RawText = element.ToString()
-        };
-    }
-
-    private static void ExtractFromHtmlBlocks(
-        string html,
-        List<ProductCandidate> candidates,
-        Market market,
-        string sourceUrl)
-    {
-        foreach (Match match in ProductBlockRegex().Matches(html))
-        {
-            var block = match.Value;
-            var title = FindTitleInHtml(block);
-            var price = FindPrice(block);
-
-            if (string.IsNullOrWhiteSpace(title) || !price.HasValue)
-            {
-                continue;
-            }
-
-            candidates.Add(new ProductCandidate
-            {
-                Title = CleanText(title),
-                Price = price.Value,
-                Url = ResolveUrl(FindHref(block), market.BaseUrl) ?? sourceUrl,
-                ImageUrl = ResolveUrl(FindImage(block), market.BaseUrl),
-                IsInStock = !IsOutOfStockText(block) && HasPossibleBuySignal(block),
-                RawText = block
-            });
-        }
-    }
-
-    private static string? FindTitleInHtml(string html)
-    {
-        foreach (var regex in new[] { ProductNameAttributeRegex(), AltRegex(), AriaLabelRegex(), HTagRegex(), TitleAttributeRegex() })
-        {
-            var match = regex.Match(html);
-
-            if (match.Success)
-            {
-                return WebUtility.HtmlDecode(StripTags(match.Groups["title"].Value));
-            }
-        }
-
-        return null;
-    }
-
-    private static decimal? FindPrice(string text)
-    {
-        var prices = new List<decimal>();
-
-        foreach (Match match in JsonPriceRegex().Matches(text))
-        {
-            if (TryParsePrice(match.Groups["price"].Value, out var price))
-            {
-                prices.Add(price);
-            }
-        }
-
-        foreach (Match match in TurkishPriceRegex().Matches(text))
-        {
-            if (TryParsePrice(match.Groups["price"].Value, out var price))
-            {
-                prices.Add(price);
-            }
-        }
-
-        var valid = prices.Where(p => p >= 5 && p <= 1500).OrderBy(p => p).ToList();
-        return valid.Count > 0 ? valid[0] : null;
-    }
-
-    private static string? FindHref(string html)
-    {
-        var match = HrefRegex().Match(html);
-        return match.Success ? WebUtility.HtmlDecode(match.Groups["url"].Value) : null;
-    }
-
-    private static string? FindImage(string html)
-    {
-        var match = ImageRegex().Match(html);
-        return match.Success ? WebUtility.HtmlDecode(match.Groups["url"].Value) : null;
-    }
-
-    private static int CalculateConfidence(ProductCandidate candidate, Product product, SearchTarget target)
-    {
-        var haystack = NormalizeTurkish($"{candidate.Title} {candidate.RawText}");
-        var productName = NormalizeTurkish(product.Name);
-        var varietyName = NormalizeTurkish(target.VarietyName);
-        var query = NormalizeTurkish(target.Query);
-
-        var score = 0;
-
-        if (haystack.Contains(productName))
-        {
-            score += 45;
-        }
-
-        if (!string.Equals(productName, varietyName, StringComparison.OrdinalIgnoreCase) && haystack.Contains(varietyName))
-        {
-            score += 25;
-        }
-
-        if (!string.Equals(productName, query, StringComparison.OrdinalIgnoreCase) && haystack.Contains(query))
-        {
-            score += 20;
-        }
-
-        if (ContainsAny(haystack, "kg", "kilogram", "gr", "gram", "meyve", "sebze", "narenciye", "adet", "taze", "organik"))
-        {
-            score += 10;
-        }
-
-        if (candidate.IsInStock)
-        {
-            score += 10;
-        }
-
-        if (LooksLikeWrongProduct(candidate.Title, product, target))
-        {
-            score -= 40;
-        }
-
-        return Math.Clamp(score, 0, 100);
-    }
-
-    private static bool LooksLikeWrongProduct(string title, Product product, SearchTarget target)
-    {
-        var normalizedTitle = NormalizeTurkish(title);
-        var productName = NormalizeTurkish(product.Name);
-        var query = NormalizeTurkish(target.Query);
-
-        if (normalizedTitle.Contains("anasayfa") || normalizedTitle.Contains("home") || normalizedTitle.Contains("sepet"))
-        {
-            return true;
-        }
-
-        if (IsFreshProduceProduct(product) && ContainsAny(normalizedTitle,
-            "fanta",
-            "gazoz",
-            "icecek",
-            "meyve suyu",
-            "nektar",
-            "soda",
-            "kola",
-            "aromali",
-            "surup",
-            "toz icecek",
-            "cikolata",
-            "biskuvi",
-            "biskuit",
-            "kek",
-            "recel",
-            "marmelat",
-            "tatli",
-            "konserve",
-            "dondurma",
-            "cool",
-            "sprite",
-            "schweppes",
-            "pepsi",
-            "lipton",
-            "cappy",
-            "dimes",
-            "tamek",
-            "pinar",
-            "enerji",
-            "energy",
-            "buzlu",
-            "gazli",
-            " ml",
-            "sise",
-            "kutu",
-            "teneke",
-            "cepte sok"))
-        {
-            return true;
-        }
-
-        return !normalizedTitle.Contains(productName) && !normalizedTitle.Contains(query);
-    }
-
-    private static bool IsLikelyFreshProduceCandidate(ProductCandidate candidate, Product product)
-    {
-        if (!IsFreshProduceProduct(product))
-        {
-            return true;
-        }
-
-        var normalized = NormalizeTurkish($"{candidate.Title} {candidate.RawText}");
-
-        if (ContainsAny(normalized,
-            "fanta",
-            "gazoz",
-            "icecek",
-            "meyve suyu",
-            "nektar",
-            "soda",
-            "kola",
-            "aromali",
-            "surup",
-            "toz icecek",
-            "cikolata",
-            "biskuvi",
-            "biskuit",
-            "kek",
-            "recel",
-            "marmelat",
-            "tatli",
-            "konserve",
-            "dondurma",
-            "cool",
-            "sprite",
-            "schweppes",
-            "pepsi",
-            "lipton",
-            "cappy",
-            "dimes",
-            "tamek",
-            "pinar",
-            "enerji",
-            "energy",
-            "buzlu",
-            "gazli",
-            " ml",
-            "sise",
-            "kutu",
-            "teneke",
-            "cepte sok"))
-        {
-            return false;
-        }
-
-        return ContainsAny(normalized,
-            "kg",
-            "kilogram",
-            "gr",
-            "gram",
-            "adet",
-            "meyve",
-            "sebze",
-            "narenciye",
-            "organik",
-            "taze");
-    }
-
-    private static bool IsFreshProduceProduct(Product product)
-    {
-        return ContainsAny($"{product.Category} {product.Name}",
-            "narenciye",
-            "tropikal",
-            "mandalina",
-            "limon",
-            "lime",
-            "portakal",
-            "avokado",
-            "greyfurt",
-            "kumkuat",
-            "bergamot");
-    }
-
-    private static bool HasPossibleBuySignal(string text)
-    {
-        var normalized = NormalizeTurkish(text);
-
-        return ContainsAny(normalized,
-            "sepete ekle",
-            "add to cart",
-            "addtocart",
-            "satisa acik",
-            "available",
-            "stokta",
-            "in stock",
-            "price",
-            "tl",
-            "â‚º");
-    }
-
-    private static bool IsOutOfStockText(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            return false;
-        }
-
-        var normalized = NormalizeTurkish(text);
-
-        return ContainsAny(normalized,
-            "stokta yok",
-            "stok yok",
-            "tukendi",
-            "tukenmistir",
-            "gelince haber ver",
-            "satis disi",
-            "satisa kapali",
-            "urun bulunamadi",
-            "bulunamadi",
-            "out of stock",
-            "not available",
-            "unavailable");
-    }
-
-    private static bool ContainsAny(string value, params string[] needles)
-    {
-        return needles.Any(needle => value.Contains(NormalizeTurkish(needle)));
-    }
-
-    private static string? FirstString(JsonElement element, params string[] names)
-    {
-        foreach (var name in names)
-        {
-            if (TryGetPropertyIgnoreCase(element, name, out var property))
-            {
-                if (property.ValueKind == JsonValueKind.String)
-                {
-                    return property.GetString();
-                }
-
-                if (property.ValueKind == JsonValueKind.Number || property.ValueKind == JsonValueKind.True || property.ValueKind == JsonValueKind.False)
-                {
-                    return property.ToString();
-                }
-
-                if (property.ValueKind == JsonValueKind.Object)
-                {
-                    var nested = FirstString(property, "text", "label", "name", "value", "formattedValue");
-
-                    if (!string.IsNullOrWhiteSpace(nested))
-                    {
-                        return nested;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static decimal? FirstPrice(JsonElement element, params string[] names)
-    {
-        foreach (var name in names)
-        {
-            if (TryGetPropertyIgnoreCase(element, name, out var property))
-            {
-                var price = PriceFromElement(property);
-
-                if (price.HasValue)
-                {
-                    return price.Value;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static decimal? PriceFromElement(JsonElement element)
-    {
-        if (element.ValueKind == JsonValueKind.Number && element.TryGetDecimal(out var numericPrice))
-        {
-            return NormalizePrice(numericPrice);
-        }
-
-        if (element.ValueKind == JsonValueKind.String && TryParsePrice(element.GetString() ?? string.Empty, out var stringPrice))
-        {
-            return stringPrice;
-        }
-
-        if (element.ValueKind == JsonValueKind.Object)
-        {
-            var nested = FirstPrice(element, "value", "amount", "price", "salePrice", "discountedPrice", "formattedValue");
-
-            if (nested.HasValue)
-            {
-                return nested.Value;
-            }
-        }
-
-        return null;
-    }
-
-    private static bool? FirstBool(JsonElement element, params string[] names)
-    {
-        foreach (var name in names)
-        {
-            if (TryGetPropertyIgnoreCase(element, name, out var property))
-            {
-                if (property.ValueKind == JsonValueKind.True)
-                {
-                    return true;
-                }
-
-                if (property.ValueKind == JsonValueKind.False)
-                {
-                    return false;
-                }
-
-                if (property.ValueKind == JsonValueKind.String && bool.TryParse(property.GetString(), out var parsed))
-                {
-                    return parsed;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static bool TryGetPropertyIgnoreCase(JsonElement element, string name, out JsonElement property)
-    {
-        if (element.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var item in element.EnumerateObject())
-            {
-                if (string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))
-                {
-                    property = item.Value;
-                    return true;
-                }
-            }
-        }
-
-        property = default;
         return false;
     }
 
-    private static bool TryParsePrice(string value, out decimal price)
-    {
-        value = WebUtility.HtmlDecode(value)
-            .Trim()
-            .Replace("â‚º", string.Empty)
-            .Replace("TL", string.Empty, StringComparison.OrdinalIgnoreCase)
-            .Replace("TRY", string.Empty, StringComparison.OrdinalIgnoreCase)
-            .Replace(" ", string.Empty)
-            .Replace(".", string.Empty)
-            .Replace(',', '.');
+    // Phrase match (multi-word): "hass avokado" can span as substring
+    private static bool ContainsPhrase(string hay, string phrase) =>
+        hay.Contains(phrase, StringComparison.Ordinal);
 
-        if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out price) && price > 0)
+    private static bool IsJunk(string title)
+    {
+        var n = N(title);
+        return Any(n,
+            // içecek / meyve suyu / sıvı
+            " suyu", "meyve suyu", "nektar", "kola", "gazoz", "soda", "energy",
+            "fanta", "sprite", "pepsi", "lipton", "schweppes", "uludag",
+            "ice tea", "smoothie", "icecek", "konsantre", "limonata",
+            " ml", " lt ", " 1 l", " 2 l", " 3 l",
+            // şeker / tatlı / atıştırmalık / konsantre
+            "toz seker", "lokum", "recel", "marmelat", "pekmez", "eksisi",
+            " tatlisi", "cikolata", "biskuvi", "gofret", "kek ", "kuru pasta", "dondurma",
+            "sekerleme", "aromal", "jole", "puding", "bonbon", "karamel",
+            // kraker / cips / atıştırmalık
+            "kraker", "cips", "chili", "tortilla", "patlamis",
+            // işlenmiş / paket
+            "konserve", "tursu", "sos ", "ketcap", "mayonez", "salca",
+            "corba", "hazir ", "kuruyemis", "findik ", "badem ",
+            "cay ", "kahve",
+            // püresi / özlü / bebek maması
+            "puresi", "pureli", "ozlu", "karisik meyve", "hipp", "bebek", "besin",
+            "macun", "draje", "vitamin", "takviye", "mama", "kavanoz",
+            // kişisel bakım / kozmetik / diğer
+            "mendil", "kokulu", "koku", "parfum", "deodorant", "sakiz", "gum ",
+            "sensation", "sensations", "cool mint", "fresh mint", "freeze",
+            " 10 g", " 15 g", " 20 g", " 25 g", " 27 g", " 30 g", " 35 g", " 40 g",
+            // sushi / hazır yemek
+            "sushi", " roll", "maki", "nigiri", "temaki", "onigiri",
+            "dardenia", "daily",
+            // ev & temizlik & kişisel bakım
+            "deterjan", "sabun", "sampuan", "krem", "losyon", "jel",
+            "wc ", "blok ", "domestos", "cif", "veet", "ariel", "persil",
+            "temizleyici", "deodorant", "parfum", "sprey",
+            // navigasyon
+            "anasayfa", "sepet", "kategori");
+    }
+
+    private static bool IsGrocery(Product p) =>
+        Any($"{p.Category} {p.Name}", "narenciye", "tropikal", "meyve", "sebze", "diger");
+
+    // ── JSON HELPERS ─────────────────────────────────────────────────────────
+
+    private static string? GetStr(JsonElement el, params string[] keys)
+    {
+        foreach (var key in keys)
         {
-            price = NormalizePrice(price);
-            return price > 0;
-        }
+            foreach (var prop in el.EnumerateObject())
+            {
+                if (!prop.Name.Equals(key, StringComparison.OrdinalIgnoreCase)) continue;
 
-        return false;
+                var v = prop.Value;
+                if (v.ValueKind == JsonValueKind.String)
+                    return v.GetString();
+                if (v.ValueKind == JsonValueKind.Object)
+                {
+                    var nested = GetStr(v, "text", "label", "name", "value", "tr", "formattedValue");
+                    if (!string.IsNullOrWhiteSpace(nested)) return nested;
+                }
+            }
+        }
+        return null;
     }
 
-    private static decimal NormalizePrice(decimal price)
+    private static decimal? GetPrice(JsonElement el, params string[] keys)
     {
-        // Bazi JSON endpointleri kurus cinsinden fiyat donebilir: 4990 => 49.90
-        if (price > 1500 && price % 1 == 0)
+        foreach (var key in keys)
         {
-            return decimal.Round(price / 100, 2);
+            foreach (var prop in el.EnumerateObject())
+            {
+                if (!prop.Name.Equals(key, StringComparison.OrdinalIgnoreCase)) continue;
+                var p = ParsePrice(prop.Value);
+                if (p is > 0) return p;
+            }
         }
-
-        return decimal.Round(price, 2);
+        return null;
     }
 
-    private static string CleanText(string value)
+    private static decimal? ParsePrice(JsonElement el)
     {
-        return Regex.Replace(
-                StripTags(WebUtility.HtmlDecode(value)),
-                "\\s+",
-                " ")
-            .Trim();
+        if (el.ValueKind == JsonValueKind.Number && el.TryGetDecimal(out var v))
+            return NormalizePrice(v);
+        if (el.ValueKind == JsonValueKind.String)
+            return ParsePriceStr(el.GetString() ?? "");
+        if (el.ValueKind == JsonValueKind.Object)
+            return GetPrice(el, "value", "amount", "price", "salePrice", "discountedPrice", "formattedValue");
+        return null;
     }
 
-    private static string StripTags(string value)
+    private static decimal? ParsePriceStr(string s)
     {
-        return Regex.Replace(value, "<.*?>", " ");
+        s = s.Replace("TL", "", StringComparison.OrdinalIgnoreCase)
+             .Replace("TRY", "", StringComparison.OrdinalIgnoreCase)
+             .Replace("₺", "").Replace(" ", "").Replace(".", "").Replace(',', '.');
+        return decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out var v) && v > 0
+            ? NormalizePrice(v) : null;
     }
 
-    private static string? ResolveUrl(string? url, string? baseUrl)
+    private static decimal NormalizePrice(decimal p)
+        => p > 1500 && p % 1 == 0 ? decimal.Round(p / 100, 2) : decimal.Round(p, 2);
+
+    private static bool? GetBool(JsonElement el, params string[] keys)
     {
-        if (string.IsNullOrWhiteSpace(url))
+        foreach (var key in keys)
         {
-            return null;
+            foreach (var prop in el.EnumerateObject())
+            {
+                if (!prop.Name.Equals(key, StringComparison.OrdinalIgnoreCase)) continue;
+                if (prop.Value.ValueKind == JsonValueKind.True)  return true;
+                if (prop.Value.ValueKind == JsonValueKind.False) return false;
+                if (prop.Value.ValueKind == JsonValueKind.String
+                    && bool.TryParse(prop.Value.GetString(), out var b)) return b;
+            }
         }
+        return null;
+    }
 
+    private static bool IsOutOfStock(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return false;
+        return Any(N(s), "stokta yok", "tukendi", "satis disi", "out of stock", "unavailable");
+    }
+
+    private static string? Resolve(string? url, string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
         url = WebUtility.HtmlDecode(url.Trim());
-
-        if (Uri.TryCreate(url, UriKind.Absolute, out var absoluteUri))
-        {
-            return absoluteUri.ToString();
-        }
-
-        if (!string.IsNullOrWhiteSpace(baseUrl) && Uri.TryCreate(new Uri(baseUrl), url, out var resolvedUri))
-        {
-            return resolvedUri.ToString();
-        }
-
+        if (Uri.TryCreate(url, UriKind.Absolute, out _)) return url;
+        if (!string.IsNullOrWhiteSpace(baseUrl)
+            && Uri.TryCreate(new Uri(baseUrl), url, out var abs))
+            return abs.ToString();
         return null;
     }
 
-    private static string NormalizeTurkish(string value)
+    private static string Clean(string s) =>
+        Regex.Replace(WebUtility.HtmlDecode(s), @"\s+", " ").Trim();
+
+    private static readonly System.Globalization.CultureInfo TrCulture =
+        System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+
+    // Turkish-aware normalization: İ→i, I→ı→i, Turkish diacritics removed
+    private static string N(string s) =>
+        WebUtility.HtmlDecode(s)
+            .ToLower(TrCulture)           // İ→i, I→ı  (Turkish locale)
+            .Replace("ı","i").Replace("ğ","g").Replace("ü","u")
+            .Replace("ş","s").Replace("ö","o").Replace("ç","c");
+
+    private static bool Any(string s, params string[] needles) =>
+        needles.Any(n => s.Contains(N(n)));
+
+    private static string BuildUrl(string template, string query) =>
+        string.Format(CultureInfo.InvariantCulture, template, WebUtility.UrlEncode(query));
+
+    private static void SetHeaders(HttpRequestMessage req, string? baseUrl)
     {
-        return WebUtility.HtmlDecode(value)
-            .ToLowerInvariant()
-            .Replace("ı", "i")
-            .Replace("ğ", "g")
-            .Replace("ü", "u")
-            .Replace("ş", "s")
-            .Replace("ö", "o")
-            .Replace("ç", "c")
-            .Replace("Ä±", "i")
-            .Replace("ÄŸ", "g")
-            .Replace("Ã¼", "u")
-            .Replace("ÅŸ", "s")
-            .Replace("Ã¶", "o")
-            .Replace("Ã§", "c");
+        req.Headers.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
+        req.Headers.Accept.ParseAdd("application/json, text/html;q=0.9, */*;q=0.7");
+        req.Headers.AcceptLanguage.ParseAdd("tr-TR,tr;q=0.9,en-US;q=0.8");
+        if (!string.IsNullOrEmpty(baseUrl) && Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri))
+            req.Headers.Referrer = uri;
     }
 
-    private static Regex ScriptJsonRegex() => new(
-        "<script[^>]+type=[\\\"']application/ld\\+json[\\\"'][^>]*>(?<json>.*?)</script>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-
-    private static Regex NextDataRegex() => new(
-        "<script[^>]+id=[\\\"']__NEXT_DATA__[\\\"'][^>]*>(?<json>.*?)</script>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-
-    private static Regex ProductBlockRegex() => new(
-        "<(?:div|li|article|section)[^>]*(?:product|urun|card|item|sku|tile)[^>]*>.*?</(?:div|li|article|section)>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-
-    private static Regex JsonPriceRegex() => new(
-        "[\\\"'](?:price|salePrice|discountedPrice|unitPrice|currentPrice|amount|value)[\\\"']\\s*:\\s*[\\\"']?(?<price>\\d{1,7}(?:[\\.,]\\d{1,2})?)[\\\"']?",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static Regex TurkishPriceRegex() => new(
-        "(?<price>\\d{1,5}(?:[\\.,]\\d{1,2})?)\\s*(?:TL|TRY|â‚º)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static Regex ProductNameAttributeRegex() => new(
-        "(?:data-product-name|data-name|product-name|productName)=[\\\"'](?<title>[^\\\"']{2,180})[\\\"']",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static Regex AltRegex() => new(
-        "alt=[\\\"'](?<title>[^\\\"']{2,180})[\\\"']",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static Regex AriaLabelRegex() => new(
-        "aria-label=[\\\"'](?<title>[^\\\"']{2,180})[\\\"']",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static Regex HTagRegex() => new(
-        "<h[1-6][^>]*>(?<title>.*?)</h[1-6]>",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
-
-    private static Regex TitleAttributeRegex() => new(
-        "title=[\\\"'](?<title>[^\\\"']{2,180})[\\\"']",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static Regex HrefRegex() => new(
-        "href=[\\\"'](?<url>[^\\\"']{2,500})[\\\"']",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static Regex ImageRegex() => new(
-        "(?:src|data-src|content)=[\\\"'](?<url>[^\\\"']+?\\.(?:jpg|jpeg|png|webp)(?:\\?[^\\\"']*)?)[\\\"']",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private sealed record SearchTarget(
-        int? ProductVarietyId,
-        string Query,
-        string DisplayName,
-        string VarietyName,
-        string ProductName);
-
-    private sealed class ProductCandidate
+    private static IReadOnlyList<SearchTarget> BuildTargets(Product product)
     {
-        public string Title { get; set; } = string.Empty;
+        var list = product.Varieties
+            .Where(v => v.IsActive)
+            .Select(v =>
+            {
+                var q = v.SearchAliases.OrderBy(a => a.Priority).FirstOrDefault()?.Query
+                        ?? $"{v.Name} {product.Name}".ToLowerInvariant();
+                return new SearchTarget(v.Id, q, v.Name, product.Name);
+            })
+            .ToList();
 
-        public decimal? Price { get; set; }
-
-        public string? Url { get; set; }
-
-        public string? ImageUrl { get; set; }
-
-        public bool IsInStock { get; set; } = true;
-
-        public string RawText { get; set; } = string.Empty;
-
-        public int ConfidenceScore { get; set; }
+        return list.Count > 0
+            ? list
+            : [new SearchTarget(null, product.Name, product.Name, product.Name)];
     }
+
+    // ── REGEX ─────────────────────────────────────────────────────────────────
+
+    [GeneratedRegex(
+        @"<script[^>]+id=[""']__NEXT_DATA__[""'][^>]*>(?<json>[\s\S]*?)</script>",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex NextDataRegex();
+
+    [GeneratedRegex(
+        @"<script[^>]+type=[""']application/ld\+json[""'][^>]*>(?<json>[\s\S]*?)</script>",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex LdJsonRegex();
+
+    // ── TYPES ─────────────────────────────────────────────────────────────────
+
+    private sealed class Candidate(string title, decimal price, string url, string? imageUrl, bool inStock)
+    {
+        public string   Title    { get; } = title;
+        public decimal  Price    { get; } = price;
+        public string   Url      { get; } = url;
+        public string?  ImageUrl { get; } = imageUrl;
+        public bool     InStock  { get; } = inStock;
+        public int      Score    { get; set; }
+    }
+
+    private sealed record SearchTarget(int? VarietyId, string Query, string VarietyName, string ProductName);
 }
-
-
-
-
-

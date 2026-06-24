@@ -17,8 +17,6 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.AddScoped<IPriceTrackingService, PriceTrackingService>();
 
-builder.Services.AddSingleton<PlaywrightPageFetcher>();
-
 builder.Services.AddHttpClient<LiveMarketPriceProvider>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(8);
@@ -38,10 +36,6 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await MarketCatalogSeeder.EnsureSeededAsync(dbContext);
 }
-
-// Playwright browser'ı başlat (Chromium kuruluysa)
-var playwrightFetcher = app.Services.GetRequiredService<PlaywrightPageFetcher>();
-await playwrightFetcher.InitAsync();
 
 if (!app.Environment.IsDevelopment())
 {
