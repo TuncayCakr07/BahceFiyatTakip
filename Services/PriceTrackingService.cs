@@ -1,4 +1,4 @@
-using BahceFiyatTakip.Data;
+﻿using BahceFiyatTakip.Data;
 using BahceFiyatTakip.Models;
 using BahceFiyatTakip.Services.MarketPrices;
 using Microsoft.EntityFrameworkCore;
@@ -7,30 +7,56 @@ namespace BahceFiyatTakip.Services;
 
 public interface IPriceTrackingService
 {
-    Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(int productId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(
+        int productId,
+        CancellationToken cancellationToken = default);
 }
 
 public class PriceTrackingService(
     ApplicationDbContext dbContext,
     IMarketPriceProvider marketPriceProvider) : IPriceTrackingService
 {
-    public async Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(int productId, CancellationToken cancellationToken = default)
+    private const int MinimumConfidenceScore = 60;
+
+    public async Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(
+        int productId,
+        CancellationToken cancellationToken = default)
     {
+        await EnsureMarketCatalogAsync(cancellationToken);
+
         var product = await dbContext.Products
             .Include(item => item.Varieties)
                 .ThenInclude(variety => variety.SearchAliases)
-            .FirstOrDefaultAsync(item => item.Id == productId && item.IsActive, cancellationToken)
+            .FirstOrDefaultAsync(
+                item => item.Id == productId && item.IsActive,
+                cancellationToken)
             ?? throw new InvalidOperationException("Urun bulunamadi veya aktif degil.");
 
         var markets = await dbContext.Markets
-            .Where(market => market.IsActive)
             .OrderBy(market => market.Name)
             .ToListAsync(cancellationToken);
 
-        var priceResults = await marketPriceProvider.GetPricesAsync(product, markets, cancellationToken);
-        var checkedAt = DateTime.UtcNow;
+        var priceResults = await marketPriceProvider.GetPricesAsync(
+            product,
+            markets,
+            cancellationToken);
 
-        var records = priceResults.Select(result => new PriceRecord
+        var reliableLiveResults = priceResults
+            .Where(result =>
+                result.IsLive &&
+                result.ConfidenceScore >= MinimumConfidenceScore &&
+                !string.Equals(result.ProviderName, "Mock", StringComparison.OrdinalIgnoreCase) &&
+                !result.ProviderName.Contains("Mock", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (reliableLiveResults.Count == 0)
+        {
+            return [];
+        }
+
+        var checkedAt = DateTime.Now;
+
+        var records = reliableLiveResults.Select(result => new PriceRecord
         {
             ProductId = product.Id,
             ProductVarietyId = result.ProductVarietyId,
@@ -41,7 +67,7 @@ public class PriceTrackingService(
             ImageUrl = result.ImageUrl,
             MatchedTitle = result.MatchedTitle,
             SourceProvider = result.ProviderName,
-            IsLive = result.IsLive,
+            IsLive = true,
             ConfidenceScore = result.ConfidenceScore
         }).ToList();
 
@@ -50,4 +76,39 @@ public class PriceTrackingService(
 
         return records;
     }
+
+    private async Task EnsureMarketCatalogAsync(CancellationToken cancellationToken)
+    {
+        var catalog = MarketCatalogSeed.All;
+
+        var existingMarkets = await dbContext.Markets.ToListAsync(cancellationToken);
+
+        foreach (var item in catalog)
+        {
+            var existing = existingMarkets.FirstOrDefault(market =>
+                string.Equals(market.Name, item.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (existing is null)
+            {
+                dbContext.Markets.Add(new Market
+                {
+                    Name = item.Name,
+                    BaseUrl = item.BaseUrl,
+                    SearchUrlTemplate = item.SearchUrlTemplate,
+                    IsActive = item.IsActive
+                });
+
+                continue;
+            }
+
+            existing.BaseUrl = item.BaseUrl;
+            existing.SearchUrlTemplate = item.SearchUrlTemplate;
+            existing.IsActive = item.IsActive;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }
+
+
+

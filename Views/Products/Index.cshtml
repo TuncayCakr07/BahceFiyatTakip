@@ -1,12 +1,12 @@
-@model IReadOnlyList<BahceFiyatTakip.Models.Product>
+﻿@model IReadOnlyList<BahceFiyatTakip.Models.Product>
 
 @{
-    ViewData["Title"] = "Urunler";
+    ViewData["Title"] = "Ürünler";
 }
 
 <div class="d-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0">Urunler</h1>
-    <a class="btn btn-success" asp-action="Create">Yeni Urun</a>
+    <h1 class="h3 mb-0">Ürünler</h1>
+    <a class="btn btn-success" asp-action="Create">Yeni Ürün</a>
 </div>
 
 @if (TempData["Message"] is string message)
@@ -19,12 +19,12 @@
         <table class="table table-hover align-middle">
             <thead>
                 <tr>
-                    <th>Urun</th>
+                    <th>Ürün</th>
                     <th>Kategori</th>
                     <th>Birim</th>
-                    <th>Cesit</th>
+                    <th>Çeşit</th>
                     <th>Durum</th>
-                    <th class="text-end">Islem</th>
+                    <th class="text-end">İşlem</th>
                 </tr>
             </thead>
             <tbody>
@@ -41,7 +41,7 @@
                         </span>
                     </td>
                     <td class="text-end">
-                        <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@product.Id">Duzenle</a>
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@product.Id">Düzenle</a>
                     </td>
                 </tr>
             }
@@ -49,3 +49,4 @@
         </table>
     </div>
 </div>
+

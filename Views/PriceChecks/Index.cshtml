@@ -2,22 +2,34 @@
     ViewData["Title"] = "Fiyat Kontrol";
 }
 
-<h1 class="h3 mb-4">Fiyat Kontrol</h1>
+<div class="check-page-card">
+    <h1>Canlı Fiyat Çek</h1>
+    <p style="color:var(--gray-600);margin-bottom:1.5rem;font-size:.9rem;">
+        Seçilen ürün için tüm aktif marketler paralel olarak taranır.<br>
+        Playwright ile JavaScript gerektiren siteler de dahil edilir.
+    </p>
 
-<div class="panel-section">
-    <form asp-action="Check" method="post" class="row g-3 align-items-end">
-        <div class="col-md-8">
-            <label class="form-label">Urun</label>
+    <form asp-action="Check" method="post" id="checkForm">
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Ürün</label>
             <select name="productId" class="form-select" asp-items="ViewBag.Products" required>
-                <option value="">Urun secin</option>
+                <option value="">— Ürün seçin —</option>
             </select>
         </div>
-        <div class="col-md-4">
-            <button type="submit" class="btn btn-success w-100">Canli Fiyatlari Cek</button>
-        </div>
+        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" id="submitBtn">
+            <span id="btnText">Canlı Fiyatları Çek</span>
+            <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
+        </button>
     </form>
 </div>
 
-<div class="alert alert-info mt-3">
-    Canli kaynak okunamazsa ilgili market icin mock yedek fiyat kaydedilir.
-</div>
+@section Scripts {
+<script>
+document.getElementById('checkForm').addEventListener('submit', function() {
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    document.getElementById('btnText').textContent = 'Taranıyor…';
+    document.getElementById('btnSpinner').classList.remove('d-none');
+});
+</script>
+}

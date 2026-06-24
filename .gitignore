@@ -1,0 +1,39 @@
+## .NET / ASP.NET Core
+bin/
+obj/
+publish/
+*.user
+*.suo
+.vs/
+*.ncrunchproject
+
+## Build outputs
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+## Logs & runtime
+logs/
+*.log
+
+## Secrets & environment
+appsettings.Production.json
+appsettings.*.local.json
+.env
+secrets.json
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Playwright browser binaries
+**/playwright/
+**/ms-playwright/
+playwright.ps1

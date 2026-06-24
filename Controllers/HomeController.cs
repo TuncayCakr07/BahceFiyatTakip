@@ -20,31 +20,50 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index()
     {
+        var products = await _dbContext.Products
+            .Where(p => p.IsActive)
+            .OrderBy(p => p.Name)
+            .ToListAsync();
+
+        var cutoff = DateTime.UtcNow.AddDays(-30);
+        var records = await _dbContext.PriceRecords
+            .Include(r => r.ProductVariety)
+            .Include(r => r.Market)
+            .Where(r => r.IsLive && r.CheckedAt >= cutoff)
+            .OrderByDescending(r => r.CheckedAt)
+            .ToListAsync();
+
+        var summaries = products.Select(product =>
+        {
+            var productRecords = records
+                .Where(r => r.ProductId == product.Id)
+                .GroupBy(r => r.MarketId)
+                .Select(g => g.First())
+                .OrderBy(r => r.PricePerKg)
+                .ToList();
+
+            return new ProductPriceSummary
+            {
+                Product = product,
+                Prices = productRecords,
+                LastChecked = productRecords.Count > 0 ? productRecords.Max(r => r.CheckedAt) : null
+            };
+        }).ToList();
+
         var model = new DashboardViewModel
         {
-            ProductCount = await _dbContext.Products.CountAsync(product => product.IsActive),
-            MarketCount = await _dbContext.Markets.CountAsync(market => market.IsActive),
+            ProductCount = products.Count,
+            MarketCount = await _dbContext.Markets.CountAsync(m => m.IsActive),
             PriceRecordCount = await _dbContext.PriceRecords.CountAsync(),
-            LatestPrices = await _dbContext.PriceRecords
-                .Include(record => record.Product)
-                .Include(record => record.ProductVariety)
-                .Include(record => record.Market)
-                .OrderByDescending(record => record.CheckedAt)
-                .Take(10)
-                .ToListAsync()
+            ProductSummaries = summaries
         };
 
         return View(model);
     }
 
-    public IActionResult Privacy()
-    {
-        return View();
-    }
+    public IActionResult Privacy() => View();
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Error()
-    {
-        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-    }
+    public IActionResult Error() =>
+        View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
 }

@@ -1,4 +1,4 @@
-using BahceFiyatTakip.Data;
+﻿using BahceFiyatTakip.Data;
 using BahceFiyatTakip.Services;
 using BahceFiyatTakip.Services.MarketPrices;
 using Microsoft.EntityFrameworkCore;
@@ -14,25 +14,38 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddControllersWithViews();
+
 builder.Services.AddScoped<IPriceTrackingService, PriceTrackingService>();
+
+builder.Services.AddSingleton<PlaywrightPageFetcher>();
+
 builder.Services.AddHttpClient<LiveMarketPriceProvider>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(15);
+    client.Timeout = TimeSpan.FromSeconds(8);
 });
+
 builder.Services.AddHttpClient<BraveWebSearchPriceProvider>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(20);
+    client.Timeout = TimeSpan.FromSeconds(8);
 });
-builder.Services.AddHttpClient<MockMarketPriceProvider>();
+
 builder.Services.AddScoped<IMarketPriceProvider, CompositeMarketPriceProvider>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await MarketCatalogSeeder.EnsureSeededAsync(dbContext);
+}
+
+// Playwright browser'ı başlat (Chromium kuruluysa)
+var playwrightFetcher = app.Services.GetRequiredService<PlaywrightPageFetcher>();
+await playwrightFetcher.InitAsync();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -48,3 +61,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
+
+
+
+

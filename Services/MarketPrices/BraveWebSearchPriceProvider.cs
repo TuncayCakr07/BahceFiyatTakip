@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -34,10 +34,10 @@ public partial class BraveWebSearchPriceProvider(
         var results = new List<MarketPriceResult>();
         var targets = BuildSearchTargets(product);
 
-        foreach (var target in targets.Take(8))
+        foreach (var target in targets.Take(2))
         {
             var query = $"{target.Query} fiyat kg resim";
-            var searchUrl = $"{BraveEndpoint}?q={WebUtility.UrlEncode(query)}&count=5&country=TR&search_lang=tr";
+            var searchUrl = $"{BraveEndpoint}?q={WebUtility.UrlEncode(query)}&count=3&country=TR&search_lang=tr";
 
             try
             {
@@ -55,7 +55,7 @@ public partial class BraveWebSearchPriceProvider(
                 await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
                 using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 
-                foreach (var item in EnumerateWebResults(document.RootElement).Take(5))
+                foreach (var item in EnumerateWebResults(document.RootElement).Take(2))
                 {
                     var offer = await TryReadOfferPageAsync(item.Url, webMarket, target, cancellationToken);
                     if (offer is not null)
@@ -196,22 +196,87 @@ public partial class BraveWebSearchPriceProvider(
         return null;
     }
 
+    private static bool LooksLikeWrongFreshProducePage(string html, SearchTarget target)
+    {
+        var normalized = NormalizeTurkish(html);
+
+        if (ContainsAny(normalized,
+            "fanta",
+            "gazoz",
+            "icecek",
+            "meyve suyu",
+            "nektar",
+            "soda",
+            "kola",
+            "aromali",
+            "surup",
+            "toz icecek",
+            "cikolata",
+            "biskuvi",
+            "kek"))
+        {
+            return true;
+        }
+
+        var productName = NormalizeTurkish(target.ProductName);
+        var varietyName = NormalizeTurkish(target.VarietyName);
+
+        if (!normalized.Contains(productName) && !normalized.Contains(varietyName))
+        {
+            return true;
+        }
+
+        return !ContainsAny(normalized,
+            "kg",
+            "kilogram",
+            "gr",
+            "gram",
+            "adet",
+            "meyve",
+            "sebze",
+            "narenciye",
+            "taze",
+            "organik");
+    }
+
+    private static bool ContainsAny(string value, params string[] needles)
+    {
+        return needles.Any(needle => value.Contains(NormalizeTurkish(needle)));
+    }
+
+    private static string NormalizeTurkish(string value)
+    {
+        return WebUtility.HtmlDecode(value)
+            .ToLowerInvariant()
+            .Replace("ı", "i")
+            .Replace("ğ", "g")
+            .Replace("ü", "u")
+            .Replace("ş", "s")
+            .Replace("ö", "o")
+            .Replace("ç", "c")
+            .Replace("Ä±", "i")
+            .Replace("ÄŸ", "g")
+            .Replace("Ã¼", "u")
+            .Replace("ÅŸ", "s")
+            .Replace("Ã¶", "o")
+            .Replace("Ã§", "c");
+    }
     private static int CalculateConfidence(string html, SearchTarget target)
     {
-        var normalized = html.ToLowerInvariant();
+        var normalized = NormalizeTurkish(html);
         var score = 35;
 
-        if (normalized.Contains(target.ProductName.ToLowerInvariant()))
+        if (normalized.Contains(NormalizeTurkish(target.ProductName)))
         {
             score += 20;
         }
 
-        if (normalized.Contains(target.VarietyName.ToLowerInvariant()))
+        if (normalized.Contains(NormalizeTurkish(target.VarietyName)))
         {
             score += 30;
         }
 
-        if (normalized.Contains("kg") || normalized.Contains("kilogram"))
+        if (ContainsAny(normalized, "kg", "kilogram", "gr", "gram", "adet", "meyve", "sebze", "narenciye", "taze", "organik"))
         {
             score += 15;
         }
@@ -235,3 +300,4 @@ public partial class BraveWebSearchPriceProvider(
 
     private sealed record WebResult(string Url);
 }
+

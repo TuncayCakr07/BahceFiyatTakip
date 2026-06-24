@@ -21,8 +21,11 @@ public class PriceChecksController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Check(int productId)
     {
-        await priceTrackingService.CheckAndSavePricesAsync(productId);
-        TempData["Message"] = "Market fiyatlari kontrol edildi ve kaydedildi. Canli veri alinamayan marketlerde mock yedek kullanildi.";
+        var savedRecords = await priceTrackingService.CheckAndSavePricesAsync(productId);
+
+        TempData["Message"] = savedRecords.Count > 0
+            ? $"Canli fiyat kontrol edildi. {savedRecords.Count} adet guvenilir ve stokta olan fiyat kaydedildi."
+            : "Canli ve stokta olan guvenilir fiyat bulunamadi. Mock veya eski veri kaydedilmedi.";
 
         return RedirectToAction(nameof(History), new { productId });
     }
@@ -62,7 +65,10 @@ public class PriceChecksController(
             StartDate = startDate,
             EndDate = endDate,
             Products = await dbContext.Products.OrderBy(product => product.Name).ToListAsync(),
-            Markets = await dbContext.Markets.OrderBy(market => market.Name).ToListAsync(),
+            Markets = await dbContext.Markets
+                .Where(market => market.IsActive)
+                .OrderBy(market => market.Name)
+                .ToListAsync(),
             Records = await query
                 .OrderByDescending(record => record.CheckedAt)
                 .ThenBy(record => record.Market.Name)

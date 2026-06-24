@@ -1,64 +1,422 @@
-html {
-  font-size: 14px;
+html { font-size: 14px; }
+@media (min-width: 768px) { html { font-size: 16px; } }
+
+:root {
+    --green:   #16a34a;
+    --green-bg: #f0fdf4;
+    --orange:  #ea580c;
+    --gray-50: #f8fafc;
+    --gray-100:#f1f5f9;
+    --gray-200:#e2e8f0;
+    --gray-400:#94a3b8;
+    --gray-600:#475569;
+    --gray-800:#1e293b;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+    --shadow:    0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+    --radius: 12px;
 }
 
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
-}
+* { box-sizing: border-box; }
 
 body {
-  margin-bottom: 60px;
-  background: #f5f7f4;
-  color: #1f2a24;
+    margin: 0;
+    background: var(--gray-100);
+    color: var(--gray-800);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-.panel-section,
-.summary-box {
-  background: #ffffff;
-  border: 1px solid #dfe6dc;
-  border-radius: 8px;
-  padding: 1rem;
+/* ── NAVBAR ─────────────────────────────────────────── */
+.site-nav {
+    background: #fff;
+    border-bottom: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
-.summary-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 90px;
+.site-nav .brand {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--green);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin-right: 2rem;
 }
 
-.summary-box span {
-  color: #5b675f;
-  font-weight: 600;
+.site-nav .brand::before {
+    content: "🍋";
+    font-size: 1.3rem;
 }
 
-.summary-box strong {
-  color: #146c43;
-  font-size: 2rem;
+.site-nav .nav-links {
+    display: flex;
+    gap: .25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
 }
 
+.site-nav .nav-links a {
+    color: var(--gray-600);
+    text-decoration: none;
+    font-size: .9rem;
+    font-weight: 500;
+    padding: .4rem .8rem;
+    border-radius: 8px;
+    transition: background .15s, color .15s;
+}
+
+.site-nav .nav-links a:hover,
+.site-nav .nav-links a.active {
+    background: var(--green-bg);
+    color: var(--green);
+}
+
+/* ── PAGE WRAPPER ────────────────────────────────────── */
+.page-wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+}
+
+/* ── STAT CARDS ─────────────────────────────────────── */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+}
+
+.stat-card .stat-label {
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--green);
+    line-height: 1;
+}
+
+/* ── SECTION HEADER ─────────────────────────────────── */
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.section-header h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--gray-800);
+}
+
+/* ── PRODUCT PRICE CARDS (Cimri stili) ──────────────── */
+.product-grid {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.product-card {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: box-shadow .2s;
+}
+
+.product-card:hover { box-shadow: var(--shadow); }
+
+.product-card-header {
+    padding: 1rem 1.25rem .75rem;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.product-card-header .product-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin: 0;
+}
+
+.product-card-header .last-updated {
+    font-size: .75rem;
+    color: var(--gray-400);
+    white-space: nowrap;
+}
+
+.product-card-header .btn-refresh {
+    background: var(--orange);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: .35rem .9rem;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    transition: opacity .15s;
+    white-space: nowrap;
+}
+
+.product-card-header .btn-refresh:hover { opacity: .88; }
+.product-card-header .btn-refresh:disabled { opacity: .55; cursor: not-allowed; }
+
+.btn-refresh .spinner {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+}
+
+.btn-refresh.loading .spinner { display: inline-block; }
+.btn-refresh.loading .btn-text { display: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.price-rows {
+    padding: .5rem 0;
+}
+
+.price-row {
+    display: flex;
+    align-items: center;
+    padding: .6rem 1.25rem;
+    border-bottom: 1px solid var(--gray-100);
+    gap: .75rem;
+    transition: background .1s;
+}
+
+.price-row:last-child { border-bottom: none; }
+.price-row:hover { background: var(--gray-50); }
+
+.price-row.cheapest {
+    background: var(--green-bg);
+}
+
+.price-rank {
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--gray-400);
+    width: 1.5rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.price-row.cheapest .price-rank {
+    color: var(--green);
+}
+
+.cheapest-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    font-size: .7rem;
+    font-weight: 700;
+    color: var(--green);
+    background: #dcfce7;
+    border-radius: 20px;
+    padding: .15rem .5rem;
+}
+
+.market-thumb {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: var(--gray-100);
+    padding: 2px;
+}
+
+.market-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.market-name {
+    font-weight: 600;
+    font-size: .9rem;
+    color: var(--gray-800);
+}
+
+.variety-name {
+    font-size: .75rem;
+    color: var(--gray-400);
+}
+
+.price-display {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.price-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gray-800);
+}
+
+.price-row.cheapest .price-value { color: var(--green); }
+
+.price-unit {
+    font-size: .72rem;
+    color: var(--gray-400);
+}
+
+.price-link {
+    color: var(--gray-400);
+    font-size: .8rem;
+    margin-left: .5rem;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.price-link:hover { color: var(--green); }
+
+.no-price-msg {
+    padding: 1.5rem 1.25rem;
+    color: var(--gray-400);
+    font-size: .9rem;
+    text-align: center;
+}
+
+.no-price-msg a {
+    color: var(--orange);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+/* ── PANEL SECTION (generic) ─────────────────────────── */
+.panel-section {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+/* ── FIYAT KONTROL PAGE ─────────────────────────────── */
+.check-page-card {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 2rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.check-page-card h1 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: var(--gray-800);
+}
+
+/* ── TABLE ───────────────────────────────────────────── */
 .table th {
-  color: #59655f;
-  font-size: .875rem;
-  font-weight: 700;
+    color: var(--gray-400);
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 2px solid var(--gray-200);
 }
+
+.table td { vertical-align: middle; }
 
 .product-thumb {
-  width: 52px;
-  height: 52px;
-  object-fit: contain;
-  background: #fff;
-  border: 1px solid #dfe6dc;
-  border-radius: 6px;
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: var(--gray-100);
+    padding: 2px;
+}
+
+/* ── BADGES ──────────────────────────────────────────── */
+.badge-live {
+    background: #dcfce7;
+    color: var(--green);
+    font-weight: 700;
+    font-size: .72rem;
+    padding: .2rem .55rem;
+    border-radius: 20px;
+}
+
+.badge-mock {
+    background: var(--gray-200);
+    color: var(--gray-600);
+    font-size: .72rem;
+    padding: .2rem .55rem;
+    border-radius: 20px;
+}
+
+/* ── FORM CONTROLS ───────────────────────────────────── */
+.form-control:focus, .form-select:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(22,163,74,.15);
+}
+
+.btn-primary {
+    background: var(--green);
+    border-color: var(--green);
+}
+
+.btn-primary:hover { background: #15803d; border-color: #15803d; }
+
+/* ── FOOTER ──────────────────────────────────────────── */
+footer.site-footer {
+    text-align: center;
+    font-size: .8rem;
+    color: var(--gray-400);
+    padding: 1rem;
+    margin-top: 2rem;
+}
+
+/* ── ALERT ───────────────────────────────────────────── */
+.alert-success {
+    background: var(--green-bg);
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    border-radius: 8px;
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────── */
+@media (max-width: 640px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .site-nav .nav-links a { font-size: .8rem; padding: .35rem .6rem; }
+    .product-card-header { flex-wrap: wrap; }
 }

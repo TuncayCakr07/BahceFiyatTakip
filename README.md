@@ -1,4 +1,4 @@
-# BahceFiyatTakip
+﻿# BahceFiyatTakip
 
 ASP.NET Core MVC, .NET 8, Entity Framework Core ve SQL Server ile hazirlanan bahce urunleri market fiyat takip MVP uygulamasi.
 
@@ -8,7 +8,7 @@ ASP.NET Core MVC, .NET 8, Entity Framework Core ve SQL Server ile hazirlanan bah
 - Migros, A101, CarrefourSA, Sok ve BIM icin market kayitlari
 - Canli HTML fiyat cekme denemesi
 - Brave Search API anahtari verilirse genel web/e-ticaret aramasi
-- Canli veri alinamayan marketlerde mock fallback
+- Market sayfalarindan sonuc bulunamazsa Brave Search fallback
 - Fiyatlari SQL Server veritabanina kaydetme
 - Urun cesidi, eslesen baslik, resim URL'si ve guven skoru kaydetme
 - Gunluk/aylik gecmis icin tarih, urun ve market filtreleme
@@ -99,14 +99,16 @@ Bu script'i hosting SQL panelinden veritabanina uygulayin.
 
 ## Canli fiyat altyapisi
 
-`LiveMarketPriceProvider` market arama sayfalarini `HttpClient` ile okur ve HTML icindeki fiyat, baslik ve resim desenlerinden ilk uygun sonucu yakalamaya calisir. Market sitesi engellerse, sayfa yapisi degisirse veya fiyat bulunamazsa `CompositeMarketPriceProvider` ilgili market icin `MockMarketPriceProvider` sonucunu kaydeder. Sonuc ekraninda kaynak `Canli` veya `Mock` olarak gorunur.
+`LiveMarketPriceProvider` Migros, Macrocenter, File Market, CarrefourSA, Sok ve A101 arama sayfalarini `HttpClient` ile okur; HTML/JSON icindeki fiyat, baslik ve resim desenlerinden guvenilir ilk sonucu yakalamaya calisir. `CompositeMarketPriceProvider` once bu market scraping sonucunu kullanir.
 
-`BraveWebSearchPriceProvider`, `BRAVE_SEARCH_API_KEY` ortam degiskeni veya `SearchApis:Brave:ApiKey` ayari varsa zincir market disindaki web sitelerinde de arama yapar. Bu katman Okitsu, Orri, Murcott, Mayer, Finger Lime gibi nis cesitler icin devreye girer.
+Dogrudan market sayfalarindan guvenilir sonuc bulunamazsa `BraveWebSearchPriceProvider` devreye girer. Bu provider `BRAVE_SEARCH_API_KEY` ortam degiskeni veya `SearchApis:Brave:ApiKey` ayari varsa Brave Search API ile genel web/e-ticaret aramasi yapar; Okitsu, Orri, Murcott, Mayer, Finger Lime gibi nis cesitlerde fallback olarak kullanilir. Brave resmi market API'si degildir; yalnizca arama sonucundan bulunan sayfalari okuyarak fiyat adayi uretir.
 
 ```powershell
 $env:BRAVE_SEARCH_API_KEY="BRAVE_API_KEYINIZ"
 ```
-
 ## Seed edilen urun cesitleri
 
 Mandalina, limon, lime, finger lime, portakal, avokado ve diger narenciye urunleri icin 35 cesit ve arama alias'lari seed edildi. Ornekler: OKITSU, SATSUMA, KLEMANTIN, ORRI, MURCOTT, MAYER, ENTERDONAT, LAMAS, VERDE, ROSE, WASHINGTON, VALENSIYA, HASS, ETTINGER, BERGAMOT, KUMKUAT, GREYFURT.
+
+
+

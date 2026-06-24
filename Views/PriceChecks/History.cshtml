@@ -1,22 +1,20 @@
 @model BahceFiyatTakip.ViewModels.PriceHistoryViewModel
 
 @{
-    ViewData["Title"] = "Fiyat Gecmisi";
+    ViewData["Title"] = "Fiyat Geçmişi";
 }
-
-<h1 class="h3 mb-4">Fiyat Gecmisi</h1>
 
 @if (TempData["Message"] is string message)
 {
-    <div class="alert alert-success">@message</div>
+    <div class="alert alert-success mb-4">@message</div>
 }
 
 <div class="panel-section mb-4">
-    <form method="get" class="row g-3 align-items-end">
+    <form method="get" class="row g-2 align-items-end">
         <div class="col-md-3">
-            <label class="form-label">Urun</label>
-            <select name="productId" class="form-select">
-                <option value="">Tum urunler</option>
+            <label class="form-label fw-semibold" style="font-size:.82rem;color:var(--gray-600)">ÜRÜN</label>
+            <select name="productId" class="form-select form-select-sm">
+                <option value="">Tümü</option>
                 @foreach (var product in Model.Products)
                 {
                     <option value="@product.Id" selected="@(Model.ProductId == product.Id)">@product.Name</option>
@@ -24,9 +22,9 @@
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label">Market</label>
-            <select name="marketId" class="form-select">
-                <option value="">Tum marketler</option>
+            <label class="form-label fw-semibold" style="font-size:.82rem;color:var(--gray-600)">MARKET</label>
+            <select name="marketId" class="form-select form-select-sm">
+                <option value="">Tümü</option>
                 @foreach (var market in Model.Markets)
                 {
                     <option value="@market.Id" selected="@(Model.MarketId == market.Id)">@market.Name</option>
@@ -34,70 +32,77 @@
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Baslangic</label>
-            <input type="date" name="startDate" value="@Model.StartDate?.ToString("yyyy-MM-dd")" class="form-control" />
+            <label class="form-label fw-semibold" style="font-size:.82rem;color:var(--gray-600)">BAŞLANGIÇ</label>
+            <input type="date" name="startDate" value="@Model.StartDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
         </div>
         <div class="col-md-2">
-            <label class="form-label">Bitis</label>
-            <input type="date" name="endDate" value="@Model.EndDate?.ToString("yyyy-MM-dd")" class="form-control" />
+            <label class="form-label fw-semibold" style="font-size:.82rem;color:var(--gray-600)">BİTİŞ</label>
+            <input type="date" name="endDate" value="@Model.EndDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
         </div>
         <div class="col-md-2">
-            <button type="submit" class="btn btn-success w-100">Filtrele</button>
+            <button type="submit" class="btn btn-primary btn-sm w-100">Filtrele</button>
         </div>
     </form>
 </div>
 
 <div class="panel-section">
     <div class="table-responsive">
-        <table class="table table-hover align-middle">
+        <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
-                    <th>Urun</th>
-                    <th>Cesit</th>
+                    <th>Ürün</th>
+                    <th>Çeşit / Eşleşen</th>
                     <th>Market</th>
                     <th>Resim</th>
-                    <th>Kg Fiyati</th>
+                    <th class="text-end">Fiyat</th>
                     <th>Tarih</th>
                     <th>Kaynak</th>
-                    <th>Guven</th>
+                    <th class="text-center">Güven</th>
                 </tr>
             </thead>
             <tbody>
             @if (Model.Records.Any())
             {
-                foreach (var item in Model.Records)
+                @foreach (var item in Model.Records)
                 {
                     <tr>
-                        <td>@item.Product.Name</td>
+                        <td class="fw-semibold">@item.Product.Name</td>
                         <td>
-                            <div>@(item.ProductVariety?.Name ?? "-")</div>
+                            <div style="font-size:.85rem;font-weight:600">@(item.ProductVariety?.Name ?? "—")</div>
                             @if (!string.IsNullOrWhiteSpace(item.MatchedTitle))
                             {
-                                <small class="text-muted">@item.MatchedTitle</small>
+                                <div style="font-size:.75rem;color:var(--gray-400)">@item.MatchedTitle</div>
                             }
                         </td>
-                        <td>@item.Market.Name</td>
+                        <td style="font-size:.9rem">@item.Market.Name</td>
                         <td>
                             @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
                             {
-                                <img src="@item.ImageUrl" alt="@item.MatchedTitle" class="product-thumb" />
+                                <a href="@item.SourceUrl" target="_blank">
+                                    <img src="@item.ImageUrl" alt="@item.MatchedTitle" class="product-thumb" />
+                                </a>
                             }
                         </td>
-                        <td>@item.PricePerKg.ToString("N2") TL</td>
-                        <td>@item.CheckedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        <td class="text-end fw-bold" style="font-size:1rem;color:var(--green)">
+                            @item.PricePerKg.ToString("N2") ₺
+                            <div style="font-size:.7rem;color:var(--gray-400);font-weight:400">/kg</div>
+                        </td>
+                        <td style="font-size:.8rem;color:var(--gray-600)">@item.CheckedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
                         <td>
-                            <span class="badge @(item.IsLive ? "text-bg-success" : "text-bg-secondary")">
-                                @(item.IsLive ? "Canli" : "Mock")
+                            <span class="@(item.IsLive ? "badge-live" : "badge-mock")">
+                                @(item.IsLive ? "Canlı" : "Mock")
                             </span>
                         </td>
-                        <td>@item.ConfidenceScore</td>
+                        <td class="text-center" style="font-size:.85rem;color:var(--gray-600)">@item.ConfidenceScore</td>
                     </tr>
                 }
             }
             else
             {
                 <tr>
-                    <td colspan="8" class="text-muted">Secili filtreler icin kayit bulunamadi.</td>
+                    <td colspan="8" class="text-center py-4" style="color:var(--gray-400)">
+                        Seçili filtreler için kayıt bulunamadı.
+                    </td>
                 </tr>
             }
             </tbody>

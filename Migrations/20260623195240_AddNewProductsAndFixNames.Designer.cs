@@ -4,6 +4,7 @@ using BahceFiyatTakip.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BahceFiyatTakip.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260623195240_AddNewProductsAndFixNames")]
+    partial class AddNewProductsAndFixNames
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -366,998 +369,913 @@ namespace BahceFiyatTakip.Migrations
                         new
                         {
                             Id = 4,
-                            Priority = 4,
-                            ProductVarietyId = 1,
-                            Query = "okitsu fidan meyve"
-                        },
-                        new
-                        {
-                            Id = 5,
                             Priority = 1,
                             ProductVarietyId = 2,
                             Query = "satsuma mandalina"
                         },
                         new
                         {
-                            Id = 6,
+                            Id = 5,
                             Priority = 2,
                             ProductVarietyId = 2,
                             Query = "satsuma mandalina kg"
                         },
                         new
                         {
-                            Id = 7,
+                            Id = 6,
                             Priority = 3,
                             ProductVarietyId = 2,
                             Query = "satsuma fiyat"
                         },
                         new
                         {
-                            Id = 9,
+                            Id = 7,
                             Priority = 1,
                             ProductVarietyId = 3,
                             Query = "klemantin mandalina"
                         },
                         new
                         {
-                            Id = 10,
+                            Id = 8,
                             Priority = 2,
                             ProductVarietyId = 3,
                             Query = "clementine mandalina"
                         },
                         new
                         {
-                            Id = 11,
+                            Id = 9,
                             Priority = 3,
                             ProductVarietyId = 3,
                             Query = "klemantin fiyat"
                         },
                         new
                         {
-                            Id = 13,
+                            Id = 10,
                             Priority = 1,
                             ProductVarietyId = 4,
                             Query = "orri mandalina"
                         },
                         new
                         {
-                            Id = 14,
+                            Id = 11,
                             Priority = 2,
                             ProductVarietyId = 4,
                             Query = "orri mandarin"
                         },
                         new
                         {
-                            Id = 15,
+                            Id = 12,
                             Priority = 3,
                             ProductVarietyId = 4,
                             Query = "orri fiyat"
                         },
                         new
                         {
-                            Id = 17,
+                            Id = 13,
                             Priority = 1,
                             ProductVarietyId = 5,
                             Query = "murcott mandalina"
                         },
                         new
                         {
-                            Id = 18,
+                            Id = 14,
                             Priority = 2,
                             ProductVarietyId = 5,
                             Query = "murcott mandarin"
                         },
                         new
                         {
-                            Id = 19,
+                            Id = 15,
                             Priority = 3,
                             ProductVarietyId = 5,
                             Query = "murcott fiyat"
                         },
                         new
                         {
-                            Id = 21,
+                            Id = 16,
                             Priority = 1,
                             ProductVarietyId = 6,
                             Query = "mayer limon"
                         },
                         new
                         {
-                            Id = 22,
+                            Id = 17,
                             Priority = 2,
                             ProductVarietyId = 6,
                             Query = "meyer limon"
                         },
                         new
                         {
-                            Id = 23,
+                            Id = 18,
                             Priority = 3,
                             ProductVarietyId = 6,
                             Query = "mayer limon kg"
                         },
                         new
                         {
-                            Id = 25,
+                            Id = 19,
                             Priority = 1,
                             ProductVarietyId = 7,
                             Query = "kirmizi limon"
                         },
                         new
                         {
-                            Id = 26,
+                            Id = 20,
                             Priority = 2,
                             ProductVarietyId = 7,
                             Query = "red lemon"
                         },
                         new
                         {
-                            Id = 27,
+                            Id = 21,
                             Priority = 3,
                             ProductVarietyId = 7,
-                            Query = "kirmizi limon fiyat"
+                            Query = "kirmizi limon kg"
                         },
                         new
                         {
-                            Id = 29,
+                            Id = 22,
                             Priority = 1,
                             ProductVarietyId = 8,
                             Query = "enterdonat limon"
                         },
                         new
                         {
-                            Id = 30,
+                            Id = 23,
                             Priority = 2,
                             ProductVarietyId = 8,
                             Query = "enterdonat limon kg"
                         },
                         new
                         {
-                            Id = 31,
+                            Id = 24,
                             Priority = 3,
                             ProductVarietyId = 8,
-                            Query = "enternonat limon"
+                            Query = "interdonato limon"
                         },
                         new
                         {
-                            Id = 33,
+                            Id = 25,
                             Priority = 1,
                             ProductVarietyId = 9,
                             Query = "lamas limon"
                         },
                         new
                         {
-                            Id = 34,
+                            Id = 26,
                             Priority = 2,
                             ProductVarietyId = 9,
-                            Query = "klasik limon"
+                            Query = "klasik limon kg"
                         },
                         new
                         {
-                            Id = 35,
+                            Id = 27,
                             Priority = 3,
                             ProductVarietyId = 9,
                             Query = "lamas limon kg"
                         },
                         new
                         {
-                            Id = 37,
+                            Id = 28,
                             Priority = 1,
                             ProductVarietyId = 10,
                             Query = "kokulu limon"
                         },
                         new
                         {
-                            Id = 38,
+                            Id = 29,
                             Priority = 2,
                             ProductVarietyId = 10,
                             Query = "kokulu limon kg"
                         },
                         new
                         {
-                            Id = 39,
+                            Id = 30,
                             Priority = 3,
                             ProductVarietyId = 10,
                             Query = "limonata limonu"
                         },
                         new
                         {
-                            Id = 41,
+                            Id = 31,
                             Priority = 1,
                             ProductVarietyId = 11,
                             Query = "grande limon"
                         },
                         new
                         {
-                            Id = 42,
+                            Id = 32,
                             Priority = 2,
                             ProductVarietyId = 11,
                             Query = "italyan limon"
                         },
                         new
                         {
-                            Id = 43,
+                            Id = 33,
                             Priority = 3,
                             ProductVarietyId = 11,
-                            Query = "grande limon fiyat"
+                            Query = "grande limon kg"
                         },
                         new
                         {
-                            Id = 45,
+                            Id = 34,
                             Priority = 1,
                             ProductVarietyId = 12,
                             Query = "tatli limon"
                         },
                         new
                         {
-                            Id = 46,
+                            Id = 35,
                             Priority = 2,
                             ProductVarietyId = 12,
-                            Query = "sweet lemon"
+                            Query = "sweet lemon kg"
                         },
                         new
                         {
-                            Id = 47,
+                            Id = 36,
                             Priority = 3,
                             ProductVarietyId = 12,
-                            Query = "tatli limon fiyat"
+                            Query = "tatli limon kg"
                         },
                         new
                         {
-                            Id = 49,
+                            Id = 37,
                             Priority = 1,
-                            ProductVarietyId = 13,
-                            Query = "lime"
-                        },
-                        new
-                        {
-                            Id = 50,
-                            Priority = 2,
                             ProductVarietyId = 13,
                             Query = "lime kg"
                         },
                         new
                         {
-                            Id = 51,
-                            Priority = 3,
+                            Id = 38,
+                            Priority = 2,
                             ProductVarietyId = 13,
-                            Query = "yesil limon"
+                            Query = "yesil limon lime"
                         },
                         new
                         {
-                            Id = 53,
+                            Id = 39,
+                            Priority = 3,
+                            ProductVarietyId = 13,
+                            Query = "lime fiyat"
+                        },
+                        new
+                        {
+                            Id = 40,
                             Priority = 1,
                             ProductVarietyId = 14,
                             Query = "kaffir lime"
                         },
                         new
                         {
-                            Id = 54,
+                            Id = 41,
                             Priority = 2,
                             ProductVarietyId = 14,
-                            Query = "kaffir lime fiyat"
+                            Query = "kafir lime"
                         },
                         new
                         {
-                            Id = 55,
+                            Id = 42,
                             Priority = 3,
                             ProductVarietyId = 14,
-                            Query = "kaffir limon"
+                            Query = "kaffir limon kg"
                         },
                         new
                         {
-                            Id = 57,
+                            Id = 43,
                             Priority = 1,
                             ProductVarietyId = 15,
                             Query = "tatli lime"
                         },
                         new
                         {
-                            Id = 58,
+                            Id = 44,
                             Priority = 2,
                             ProductVarietyId = 15,
-                            Query = "sweet lime"
+                            Query = "sweet lime kg"
                         },
                         new
                         {
-                            Id = 59,
+                            Id = 45,
                             Priority = 3,
                             ProductVarietyId = 15,
                             Query = "tatli lime fiyat"
                         },
                         new
                         {
-                            Id = 61,
+                            Id = 46,
                             Priority = 1,
                             ProductVarietyId = 16,
                             Query = "kan lime"
                         },
                         new
                         {
-                            Id = 62,
+                            Id = 47,
                             Priority = 2,
                             ProductVarietyId = 16,
                             Query = "blood lime"
                         },
                         new
                         {
-                            Id = 63,
+                            Id = 48,
                             Priority = 3,
                             ProductVarietyId = 16,
-                            Query = "kan lime fiyat"
+                            Query = "kirmizi lime"
                         },
                         new
                         {
-                            Id = 65,
+                            Id = 49,
                             Priority = 1,
                             ProductVarietyId = 17,
                             Query = "verde finger lime"
                         },
                         new
                         {
-                            Id = 66,
+                            Id = 50,
                             Priority = 2,
                             ProductVarietyId = 17,
                             Query = "finger lime verde"
                         },
                         new
                         {
-                            Id = 67,
+                            Id = 51,
                             Priority = 3,
                             ProductVarietyId = 17,
                             Query = "havyar limon verde"
                         },
                         new
                         {
-                            Id = 69,
+                            Id = 52,
                             Priority = 1,
                             ProductVarietyId = 18,
                             Query = "rose finger lime"
                         },
                         new
                         {
-                            Id = 70,
+                            Id = 53,
                             Priority = 2,
                             ProductVarietyId = 18,
                             Query = "finger lime rose"
                         },
                         new
                         {
-                            Id = 71,
+                            Id = 54,
                             Priority = 3,
                             ProductVarietyId = 18,
                             Query = "pembe havyar limon"
                         },
                         new
                         {
-                            Id = 73,
+                            Id = 55,
                             Priority = 1,
                             ProductVarietyId = 19,
                             Query = "sunpearl finger lime"
                         },
                         new
                         {
-                            Id = 74,
+                            Id = 56,
                             Priority = 2,
                             ProductVarietyId = 19,
                             Query = "finger lime sunpearl"
                         },
                         new
                         {
-                            Id = 75,
-                            Priority = 3,
-                            ProductVarietyId = 19,
-                            Query = "sunpearl havyar limon"
-                        },
-                        new
-                        {
-                            Id = 77,
+                            Id = 57,
                             Priority = 1,
                             ProductVarietyId = 20,
                             Query = "blossom finger lime"
                         },
                         new
                         {
-                            Id = 78,
+                            Id = 58,
                             Priority = 2,
                             ProductVarietyId = 20,
                             Query = "finger lime blossom"
                         },
                         new
                         {
-                            Id = 79,
-                            Priority = 3,
-                            ProductVarietyId = 20,
-                            Query = "blossom havyar limon"
-                        },
-                        new
-                        {
-                            Id = 81,
+                            Id = 59,
                             Priority = 1,
                             ProductVarietyId = 21,
                             Query = "washington portakal"
                         },
                         new
                         {
-                            Id = 82,
+                            Id = 60,
                             Priority = 2,
                             ProductVarietyId = 21,
                             Query = "finike portakal"
                         },
                         new
                         {
-                            Id = 83,
+                            Id = 61,
                             Priority = 3,
                             ProductVarietyId = 21,
                             Query = "washington portakal kg"
                         },
                         new
                         {
-                            Id = 85,
+                            Id = 62,
                             Priority = 1,
                             ProductVarietyId = 22,
                             Query = "valensiya portakal"
                         },
                         new
                         {
-                            Id = 86,
+                            Id = 63,
                             Priority = 2,
                             ProductVarietyId = 22,
-                            Query = "valencia portakal"
+                            Query = "valencia portakal kg"
                         },
                         new
                         {
-                            Id = 87,
+                            Id = 64,
                             Priority = 3,
                             ProductVarietyId = 22,
-                            Query = "valensiya portakal kg"
+                            Query = "sikmalik portakal"
                         },
                         new
                         {
-                            Id = 89,
+                            Id = 65,
                             Priority = 1,
                             ProductVarietyId = 23,
                             Query = "mysticrimson portakal"
                         },
                         new
                         {
-                            Id = 90,
+                            Id = 66,
                             Priority = 2,
-                            ProductVarietyId = 23,
-                            Query = "mystic crimson orange"
-                        },
-                        new
-                        {
-                            Id = 91,
-                            Priority = 3,
                             ProductVarietyId = 23,
                             Query = "kirmizi etli portakal"
                         },
                         new
                         {
-                            Id = 93,
+                            Id = 67,
                             Priority = 1,
                             ProductVarietyId = 24,
                             Query = "blushsweet portakal"
                         },
                         new
                         {
-                            Id = 94,
+                            Id = 68,
                             Priority = 2,
                             ProductVarietyId = 24,
-                            Query = "kan portakali blushsweet"
+                            Query = "kan portakali"
                         },
                         new
                         {
-                            Id = 95,
-                            Priority = 3,
-                            ProductVarietyId = 24,
-                            Query = "pembe portakal"
-                        },
-                        new
-                        {
-                            Id = 97,
+                            Id = 69,
                             Priority = 1,
                             ProductVarietyId = 25,
                             Query = "seker portakali"
                         },
                         new
                         {
-                            Id = 98,
+                            Id = 70,
                             Priority = 2,
                             ProductVarietyId = 25,
-                            Query = "tatli portakal"
+                            Query = "tatli portakal kg"
                         },
                         new
                         {
-                            Id = 99,
-                            Priority = 3,
-                            ProductVarietyId = 25,
-                            Query = "seker portakal kg"
-                        },
-                        new
-                        {
-                            Id = 101,
+                            Id = 71,
                             Priority = 1,
                             ProductVarietyId = 26,
                             Query = "hass avokado"
                         },
                         new
                         {
-                            Id = 102,
+                            Id = 72,
                             Priority = 2,
                             ProductVarietyId = 26,
                             Query = "puturlu avokado"
                         },
                         new
                         {
-                            Id = 103,
+                            Id = 73,
                             Priority = 3,
                             ProductVarietyId = 26,
                             Query = "hass avokado kg"
                         },
                         new
                         {
-                            Id = 105,
+                            Id = 74,
                             Priority = 1,
                             ProductVarietyId = 27,
                             Query = "ettinger avokado"
                         },
                         new
                         {
-                            Id = 106,
+                            Id = 75,
                             Priority = 2,
                             ProductVarietyId = 27,
-                            Query = "ettinger avocado"
+                            Query = "ettinger avocado kg"
                         },
                         new
                         {
-                            Id = 107,
-                            Priority = 3,
-                            ProductVarietyId = 27,
-                            Query = "ettinger avokado kg"
-                        },
-                        new
-                        {
-                            Id = 109,
+                            Id = 76,
                             Priority = 1,
                             ProductVarietyId = 28,
                             Query = "bacon avokado"
                         },
                         new
                         {
-                            Id = 110,
+                            Id = 77,
                             Priority = 2,
                             ProductVarietyId = 28,
-                            Query = "bacon avocado"
+                            Query = "bacon avocado kg"
                         },
                         new
                         {
-                            Id = 111,
-                            Priority = 3,
-                            ProductVarietyId = 28,
-                            Query = "bacon avokado kg"
-                        },
-                        new
-                        {
-                            Id = 113,
+                            Id = 78,
                             Priority = 1,
                             ProductVarietyId = 29,
                             Query = "fuerte avokado"
                         },
                         new
                         {
-                            Id = 114,
+                            Id = 79,
                             Priority = 2,
                             ProductVarietyId = 29,
-                            Query = "fuerte avocado"
+                            Query = "fuerte avocado kg"
                         },
                         new
                         {
-                            Id = 115,
-                            Priority = 3,
-                            ProductVarietyId = 29,
-                            Query = "fuerte avokado kg"
-                        },
-                        new
-                        {
-                            Id = 117,
+                            Id = 80,
                             Priority = 1,
                             ProductVarietyId = 30,
                             Query = "cliffton avokado"
                         },
                         new
                         {
-                            Id = 118,
+                            Id = 81,
                             Priority = 2,
                             ProductVarietyId = 30,
-                            Query = "clifton avokado"
+                            Query = "clifton avokado kg"
                         },
                         new
                         {
-                            Id = 119,
-                            Priority = 3,
-                            ProductVarietyId = 30,
-                            Query = "cliffton avocado"
-                        },
-                        new
-                        {
-                            Id = 121,
+                            Id = 82,
                             Priority = 1,
                             ProductVarietyId = 31,
                             Query = "bergamot"
                         },
                         new
                         {
-                            Id = 122,
+                            Id = 83,
                             Priority = 2,
                             ProductVarietyId = 31,
                             Query = "bergamot kg"
                         },
                         new
                         {
-                            Id = 123,
+                            Id = 84,
                             Priority = 3,
                             ProductVarietyId = 31,
                             Query = "bergamot fiyat"
                         },
                         new
                         {
-                            Id = 125,
+                            Id = 85,
                             Priority = 1,
                             ProductVarietyId = 32,
                             Query = "kumkuat"
                         },
                         new
                         {
-                            Id = 126,
+                            Id = 86,
                             Priority = 2,
                             ProductVarietyId = 32,
                             Query = "kamkat"
                         },
                         new
                         {
-                            Id = 127,
+                            Id = 87,
                             Priority = 3,
                             ProductVarietyId = 32,
                             Query = "kumkuat kg"
                         },
                         new
                         {
-                            Id = 129,
+                            Id = 88,
                             Priority = 1,
                             ProductVarietyId = 33,
                             Query = "sadok"
                         },
                         new
                         {
-                            Id = 130,
+                            Id = 89,
                             Priority = 2,
                             ProductVarietyId = 33,
-                            Query = "pomelo greyfurt"
+                            Query = "pomelo"
                         },
                         new
                         {
-                            Id = 131,
+                            Id = 90,
                             Priority = 3,
                             ProductVarietyId = 33,
                             Query = "sadok fiyat"
                         },
                         new
                         {
-                            Id = 133,
+                            Id = 91,
                             Priority = 1,
                             ProductVarietyId = 34,
                             Query = "beyaz greyfurt"
                         },
                         new
                         {
-                            Id = 134,
+                            Id = 92,
                             Priority = 2,
                             ProductVarietyId = 34,
-                            Query = "white grapefruit"
+                            Query = "white grapefruit kg"
                         },
                         new
                         {
-                            Id = 135,
-                            Priority = 3,
-                            ProductVarietyId = 34,
-                            Query = "beyaz greyfurt kg"
-                        },
-                        new
-                        {
-                            Id = 137,
+                            Id = 93,
                             Priority = 1,
                             ProductVarietyId = 35,
                             Query = "kirmizi greyfurt"
                         },
                         new
                         {
-                            Id = 138,
+                            Id = 94,
                             Priority = 2,
                             ProductVarietyId = 35,
-                            Query = "red grapefruit"
+                            Query = "red grapefruit kg"
                         },
                         new
                         {
-                            Id = 139,
-                            Priority = 3,
-                            ProductVarietyId = 35,
-                            Query = "kirmizi greyfurt kg"
-                        },
-                        new
-                        {
-                            Id = 141,
+                            Id = 95,
                             Priority = 1,
                             ProductVarietyId = 36,
                             Query = "limekuat"
                         },
                         new
                         {
-                            Id = 142,
+                            Id = 96,
                             Priority = 2,
                             ProductVarietyId = 36,
                             Query = "limequat"
                         },
                         new
                         {
-                            Id = 143,
+                            Id = 97,
                             Priority = 3,
                             ProductVarietyId = 36,
                             Query = "limekuat kg"
                         },
                         new
                         {
-                            Id = 145,
+                            Id = 98,
                             Priority = 1,
                             ProductVarietyId = 37,
                             Query = "turunc"
                         },
                         new
                         {
-                            Id = 146,
+                            Id = 99,
                             Priority = 2,
                             ProductVarietyId = 37,
-                            Query = "turunc portakal"
+                            Query = "acı portakal"
                         },
                         new
                         {
-                            Id = 147,
+                            Id = 100,
                             Priority = 3,
                             ProductVarietyId = 37,
-                            Query = "aci portakal"
+                            Query = "turunc kg"
                         },
                         new
                         {
-                            Id = 149,
+                            Id = 101,
                             Priority = 1,
                             ProductVarietyId = 38,
                             Query = "hicaz nar"
                         },
                         new
                         {
-                            Id = 150,
+                            Id = 102,
                             Priority = 2,
                             ProductVarietyId = 38,
                             Query = "hicaz nar kg"
                         },
                         new
                         {
-                            Id = 151,
+                            Id = 103,
                             Priority = 3,
                             ProductVarietyId = 38,
-                            Query = "nar kg"
+                            Query = "nar kg hicaz"
                         },
                         new
                         {
-                            Id = 153,
+                            Id = 104,
                             Priority = 1,
                             ProductVarietyId = 39,
                             Query = "hicaz 9 eylul nar"
                         },
                         new
                         {
-                            Id = 154,
+                            Id = 105,
                             Priority = 2,
                             ProductVarietyId = 39,
                             Query = "erkenci nar"
                         },
                         new
                         {
-                            Id = 157,
+                            Id = 106,
                             Priority = 1,
-                            ProductVarietyId = 40,
-                            Query = "ejder meyvesi"
-                        },
-                        new
-                        {
-                            Id = 158,
-                            Priority = 2,
                             ProductVarietyId = 40,
                             Query = "kirmizi ejder meyvesi"
                         },
                         new
                         {
-                            Id = 159,
-                            Priority = 3,
+                            Id = 107,
+                            Priority = 2,
                             ProductVarietyId = 40,
-                            Query = "dragon fruit"
+                            Query = "dragon fruit kirmizi"
                         },
                         new
                         {
-                            Id = 161,
+                            Id = 108,
+                            Priority = 3,
+                            ProductVarietyId = 40,
+                            Query = "ejder meyvesi kg"
+                        },
+                        new
+                        {
+                            Id = 109,
                             Priority = 1,
                             ProductVarietyId = 41,
                             Query = "sari ejder meyvesi"
                         },
                         new
                         {
-                            Id = 162,
+                            Id = 110,
                             Priority = 2,
                             ProductVarietyId = 41,
-                            Query = "yellow dragon fruit"
+                            Query = "sari dragon fruit"
                         },
                         new
                         {
-                            Id = 165,
+                            Id = 111,
                             Priority = 1,
                             ProductVarietyId = 42,
-                            Query = "carkifelek"
+                            Query = "mor carkifelek"
                         },
                         new
                         {
-                            Id = 166,
+                            Id = 112,
                             Priority = 2,
                             ProductVarietyId = 42,
-                            Query = "passion fruit"
+                            Query = "passion fruit mor"
                         },
                         new
                         {
-                            Id = 167,
+                            Id = 113,
                             Priority = 3,
                             ProductVarietyId = 42,
                             Query = "carkifelek kg"
                         },
                         new
                         {
-                            Id = 169,
+                            Id = 114,
                             Priority = 1,
                             ProductVarietyId = 43,
                             Query = "sari carkifelek"
                         },
                         new
                         {
-                            Id = 170,
+                            Id = 115,
                             Priority = 2,
                             ProductVarietyId = 43,
                             Query = "yellow passion fruit"
                         },
                         new
                         {
-                            Id = 173,
+                            Id = 116,
                             Priority = 1,
-                            ProductVarietyId = 44,
-                            Query = "mango"
-                        },
-                        new
-                        {
-                            Id = 174,
-                            Priority = 2,
                             ProductVarietyId = 44,
                             Query = "kent mango"
                         },
                         new
                         {
-                            Id = 175,
-                            Priority = 3,
+                            Id = 117,
+                            Priority = 2,
                             ProductVarietyId = 44,
-                            Query = "mango kg"
+                            Query = "mango kg kent"
                         },
                         new
                         {
-                            Id = 177,
+                            Id = 118,
+                            Priority = 3,
+                            ProductVarietyId = 44,
+                            Query = "turkiye mango"
+                        },
+                        new
+                        {
+                            Id = 119,
                             Priority = 1,
                             ProductVarietyId = 45,
                             Query = "tommy atkins mango"
                         },
                         new
                         {
-                            Id = 178,
+                            Id = 120,
                             Priority = 2,
                             ProductVarietyId = 45,
                             Query = "tommy mango kg"
                         },
                         new
                         {
-                            Id = 181,
+                            Id = 121,
                             Priority = 1,
                             ProductVarietyId = 46,
                             Query = "keitt mango"
                         },
                         new
                         {
-                            Id = 182,
+                            Id = 122,
                             Priority = 2,
                             ProductVarietyId = 46,
-                            Query = "yesil mango"
+                            Query = "yesil mango kg"
                         },
                         new
                         {
-                            Id = 185,
+                            Id = 123,
                             Priority = 1,
                             ProductVarietyId = 47,
                             Query = "salkimli domates"
                         },
                         new
                         {
-                            Id = 186,
+                            Id = 124,
                             Priority = 2,
                             ProductVarietyId = 47,
-                            Query = "domates kg"
+                            Query = "domates salkim kg"
                         },
                         new
                         {
-                            Id = 189,
+                            Id = 125,
                             Priority = 1,
                             ProductVarietyId = 48,
                             Query = "san marzano domates"
                         },
                         new
                         {
-                            Id = 190,
+                            Id = 126,
                             Priority = 2,
                             ProductVarietyId = 48,
                             Query = "san marzano kg"
                         },
                         new
                         {
-                            Id = 193,
+                            Id = 127,
                             Priority = 1,
                             ProductVarietyId = 49,
                             Query = "cherry domates"
                         },
                         new
                         {
-                            Id = 194,
+                            Id = 128,
                             Priority = 2,
                             ProductVarietyId = 49,
-                            Query = "kiraz domates"
+                            Query = "kiraz domates kg"
                         },
                         new
                         {
-                            Id = 197,
+                            Id = 129,
                             Priority = 1,
                             ProductVarietyId = 50,
                             Query = "limon otu"
                         },
                         new
                         {
-                            Id = 198,
+                            Id = 130,
                             Priority = 2,
                             ProductVarietyId = 50,
-                            Query = "lemon grass"
+                            Query = "lemon grass taze"
                         },
                         new
                         {
-                            Id = 199,
+                            Id = 131,
                             Priority = 3,
                             ProductVarietyId = 50,
                             Query = "limon otu demet"
                         },
                         new
                         {
-                            Id = 201,
+                            Id = 132,
                             Priority = 1,
                             ProductVarietyId = 51,
                             Query = "kurutulmus limon otu"
                         },
                         new
                         {
-                            Id = 202,
+                            Id = 133,
                             Priority = 2,
                             ProductVarietyId = 51,
-                            Query = "dried lemon grass"
-                        }
-                        );
+                            Query = "lemon grass kurutulmus"
+                        });
                 });
 
             modelBuilder.Entity("BahceFiyatTakip.Models.ProductVariety", b =>

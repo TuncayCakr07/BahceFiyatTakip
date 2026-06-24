@@ -2,97 +2,134 @@
 
 @{
     ViewData["Title"] = "Panel";
-}
 
-<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
-    <div>
-        <h1 class="h3 mb-1">Bahce Fiyat Takip Paneli</h1>
-        <p class="text-muted mb-0">Urunlerinizi girin, market fiyatlarini canli kaynaktan cekin ve gecmisi izleyin.</p>
-    </div>
-    <div class="d-flex gap-2">
-        <a class="btn btn-success" asp-controller="Products" asp-action="Create">Yeni Urun</a>
-        <a class="btn btn-outline-success" asp-controller="PriceChecks" asp-action="Index">Fiyat Kontrol</a>
-    </div>
-</div>
+    string TimeAgo(DateTime? dt)
+    {
+        if (dt is null) return "";
+        var diff = DateTime.UtcNow - dt.Value;
+        if (diff.TotalMinutes < 1) return "şimdi";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} dk önce";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} sa önce";
+        return $"{(int)diff.TotalDays} gün önce";
+    }
+}
 
 @if (TempData["Message"] is string message)
 {
-    <div class="alert alert-success">@message</div>
+    <div class="alert alert-success mb-4">@message</div>
 }
 
-<div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="summary-box">
-            <span>Aktif Urun</span>
-            <strong>@Model.ProductCount</strong>
-        </div>
+<div class="stat-grid mb-4">
+    <div class="stat-card">
+        <span class="stat-label">Ürün</span>
+        <span class="stat-value">@Model.ProductCount</span>
     </div>
-    <div class="col-md-4">
-        <div class="summary-box">
-            <span>Market</span>
-            <strong>@Model.MarketCount</strong>
-        </div>
+    <div class="stat-card">
+        <span class="stat-label">Aktif Market</span>
+        <span class="stat-value">@Model.MarketCount</span>
     </div>
-    <div class="col-md-4">
-        <div class="summary-box">
-            <span>Fiyat Kaydi</span>
-            <strong>@Model.PriceRecordCount</strong>
-        </div>
+    <div class="stat-card">
+        <span class="stat-label">Fiyat Kaydı</span>
+        <span class="stat-value">@Model.PriceRecordCount</span>
     </div>
 </div>
 
-<div class="panel-section">
-    <div class="d-flex align-items-center justify-content-between mb-3">
-        <h2 class="h5 mb-0">Son Fiyatlar</h2>
-        <a asp-controller="PriceChecks" asp-action="History">Tumunu gor</a>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr>
-                    <th>Urun</th>
-                    <th>Cesit</th>
-                    <th>Market</th>
-                    <th>Resim</th>
-                    <th>Kg Fiyati</th>
-                    <th>Tarih</th>
-                    <th>Kaynak</th>
-                    <th>Guven</th>
-                </tr>
-            </thead>
-            <tbody>
-            @if (Model.LatestPrices.Any())
-            {
-                foreach (var item in Model.LatestPrices)
-                {
-                    <tr>
-                        <td>@item.Product.Name</td>
-                        <td>@(item.ProductVariety?.Name ?? "-")</td>
-                        <td>@item.Market.Name</td>
-                        <td>
-                            @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
-                            {
-                                <img src="@item.ImageUrl" alt="@item.MatchedTitle" class="product-thumb" />
-                            }
-                        </td>
-                        <td>@item.PricePerKg.ToString("N2") TL</td>
-                        <td>@item.CheckedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                        <td>
-                            <span class="badge @(item.IsLive ? "text-bg-success" : "text-bg-secondary")">
-                                @(item.IsLive ? "Canli" : "Mock")
-                            </span>
-                        </td>
-                        <td>@item.ConfidenceScore</td>
-                    </tr>
-                }
-            }
-            else
-            {
-                <tr>
-                    <td colspan="8" class="text-muted">Henuz fiyat kaydi yok.</td>
-                </tr>
-            }
-            </tbody>
-        </table>
-    </div>
+<div class="section-header">
+    <h2>Fiyat Karşılaştırma</h2>
+    <a asp-controller="PriceChecks" asp-action="History" style="font-size:.85rem;color:var(--green);text-decoration:none;">Tüm geçmiş →</a>
 </div>
+
+<div class="product-grid">
+@foreach (var summary in Model.ProductSummaries)
+{
+    <div class="product-card">
+        <div class="product-card-header">
+            <div>
+                <p class="product-name">@summary.Product.Name</p>
+                @if (summary.LastChecked.HasValue)
+                {
+                    <span class="last-updated">Son güncelleme: @TimeAgo(summary.LastChecked)</span>
+                }
+            </div>
+            <form asp-controller="PriceChecks" asp-action="Check" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="productId" value="@summary.Product.Id" />
+                <button type="submit" class="btn-refresh" onclick="startLoading(this)">
+                    <span class="spinner"></span>
+                    <span class="btn-text">⟳ Güncelle</span>
+                </button>
+            </form>
+        </div>
+
+        @if (summary.Prices.Count > 0)
+        {
+            <div class="price-rows">
+                @for (int i = 0; i < summary.Prices.Count; i++)
+                {
+                    var rec = summary.Prices[i];
+                    bool isCheapest = i == 0;
+                    <div class="price-row @(isCheapest ? "cheapest" : "")">
+                        <span class="price-rank">#@(i + 1)</span>
+
+                        <div class="market-info">
+                            <div class="market-name">
+                                @rec.Market.Name
+                                @if (isCheapest)
+                                {
+                                    <span class="cheapest-badge ms-1">✓ En Ucuz</span>
+                                }
+                            </div>
+                            @if (rec.ProductVariety is not null)
+                            {
+                                <div class="variety-name">@rec.ProductVariety.Name</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(rec.MatchedTitle))
+                            {
+                                <div class="variety-name text-truncate" style="max-width:200px" title="@rec.MatchedTitle">@rec.MatchedTitle</div>
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(rec.ImageUrl))
+                        {
+                            <img src="@rec.ImageUrl" alt="@rec.MatchedTitle" class="product-thumb" />
+                        }
+
+                        <div class="price-display">
+                            <div class="price-value">@rec.PricePerKg.ToString("N2") ₺</div>
+                            <div class="price-unit">/ kg</div>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(rec.SourceUrl))
+                        {
+                            <a href="@rec.SourceUrl" target="_blank" class="price-link" title="Ürüne git">↗</a>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="no-price-msg">
+                Henüz fiyat yok —
+                <form asp-controller="PriceChecks" asp-action="Check" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="productId" value="@summary.Product.Id" />
+                    <button type="submit" class="btn-refresh" style="display:inline-flex" onclick="startLoading(this)">
+                        <span class="spinner"></span>
+                        <span class="btn-text">Şimdi çek</span>
+                    </button>
+                </form>
+            </div>
+        }
+    </div>
+}
+</div>
+
+@section Scripts {
+<script>
+function startLoading(btn) {
+    btn.disabled = true;
+    btn.classList.add('loading');
+}
+</script>
+}
