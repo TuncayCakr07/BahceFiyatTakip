@@ -24,5 +24,7 @@ public class ProductVariety
 
     public ICollection<ProductSearchAlias> SearchAliases { get; set; } = new List<ProductSearchAlias>();
 
+    public ICollection<ProductMarketLink> DirectLinks { get; set; } = new List<ProductMarketLink>();
+
     public ICollection<PriceRecord> PriceRecords { get; set; } = new List<PriceRecord>();
 }

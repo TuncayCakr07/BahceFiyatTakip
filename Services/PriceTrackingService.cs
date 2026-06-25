@@ -16,9 +16,7 @@ public class PriceTrackingService(
     ApplicationDbContext dbContext,
     IMarketPriceProvider marketPriceProvider) : IPriceTrackingService
 {
-    private const int MinimumConfidenceScore = 60;
-
-    public async Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(
+public async Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(
         int productId,
         CancellationToken cancellationToken = default)
     {
@@ -27,6 +25,8 @@ public class PriceTrackingService(
         var product = await dbContext.Products
             .Include(item => item.Varieties)
                 .ThenInclude(variety => variety.SearchAliases)
+            .Include(item => item.Varieties)
+                .ThenInclude(variety => variety.DirectLinks)
             .FirstOrDefaultAsync(
                 item => item.Id == productId && item.IsActive,
                 cancellationToken)
@@ -44,7 +44,6 @@ public class PriceTrackingService(
         var reliableLiveResults = priceResults
             .Where(result =>
                 result.IsLive &&
-                result.ConfidenceScore >= MinimumConfidenceScore &&
                 !string.Equals(result.ProviderName, "Mock", StringComparison.OrdinalIgnoreCase) &&
                 !result.ProviderName.Contains("Mock", StringComparison.OrdinalIgnoreCase))
             .ToList();

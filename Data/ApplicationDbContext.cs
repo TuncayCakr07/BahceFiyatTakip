@@ -10,6 +10,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<PriceRecord> PriceRecords => Set<PriceRecord>();
     public DbSet<ProductVariety> ProductVarieties => Set<ProductVariety>();
     public DbSet<ProductSearchAlias> ProductSearchAliases => Set<ProductSearchAlias>();
+    public DbSet<ProductMarketLink> ProductMarketLinks => Set<ProductMarketLink>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -20,6 +21,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<PriceRecord>().HasIndex(r => new { r.ProductId, r.MarketId, r.CheckedAt });
         modelBuilder.Entity<ProductVariety>().HasIndex(v => new { v.ProductId, v.Name }).IsUnique();
         modelBuilder.Entity<ProductSearchAlias>().HasIndex(a => new { a.ProductVarietyId, a.Query }).IsUnique();
+        modelBuilder.Entity<ProductMarketLink>().HasIndex(l => new { l.ProductVarietyId, l.MarketId, l.DirectUrl }).IsUnique();
 
         modelBuilder.Entity<Market>().HasData(
             new Market { Id = 1, Name = "Migros",     BaseUrl = "https://www.migros.com.tr",      IsActive = true,  SearchUrlTemplate = "https://www.migros.com.tr/rest/products/search?q={0}&sayfa=0&sira=ONERILENLER&webSubdomain=www" },

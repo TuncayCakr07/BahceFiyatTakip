@@ -3,20 +3,18 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Bahçe Fiyat Takip</title>
+    <title>@ViewData["Title"] - Bahçe Fiyat</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
     <nav class="site-nav">
-        <a class="brand" asp-controller="Home" asp-action="Index">Bahçe Fiyat</a>
+        <a class="brand" asp-controller="Home" asp-action="Index">Bahçe&nbsp;Fiyat</a>
         <ul class="nav-links">
             <li><a asp-controller="Home" asp-action="Index"
-                   class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")">Panel</a></li>
+                   class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")">Fiyatlar</a></li>
             <li><a asp-controller="PriceChecks" asp-action="Index"
-                   class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "PriceChecks" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")">Fiyat Kontrol</a></li>
-            <li><a asp-controller="PriceChecks" asp-action="History"
-                   class="@(ViewContext.RouteData.Values["action"]?.ToString() == "History" ? "active" : "")">Geçmiş</a></li>
+                   class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "PriceChecks" ? "active" : "")">Fiyat Güncelle</a></li>
             <li><a asp-controller="Products" asp-action="Index"
                    class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "Products" ? "active" : "")">Ürünler</a></li>
         </ul>

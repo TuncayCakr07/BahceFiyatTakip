@@ -27,6 +27,12 @@ builder.Services.AddHttpClient<BraveWebSearchPriceProvider>(client =>
     client.Timeout = TimeSpan.FromSeconds(8);
 });
 
+builder.Services.AddHttpClient<BingWebSearchPriceProvider>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+builder.Services.AddSingleton<PlaywrightPageFetcher>();
 builder.Services.AddScoped<IMarketPriceProvider, CompositeMarketPriceProvider>();
 
 var app = builder.Build();
@@ -34,8 +40,13 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await dbContext.Database.MigrateAsync();
     await MarketCatalogSeeder.EnsureSeededAsync(dbContext);
+    await DirectUrlSeed.EnsureSeededAsync(dbContext);
 }
+
+var pageFetcher = app.Services.GetRequiredService<PlaywrightPageFetcher>();
+await pageFetcher.InitAsync();
 
 if (!app.Environment.IsDevelopment())
 {

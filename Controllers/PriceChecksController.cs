@@ -24,10 +24,10 @@ public class PriceChecksController(
         var savedRecords = await priceTrackingService.CheckAndSavePricesAsync(productId);
 
         TempData["Message"] = savedRecords.Count > 0
-            ? $"Canli fiyat kontrol edildi. {savedRecords.Count} adet guvenilir ve stokta olan fiyat kaydedildi."
-            : "Canli ve stokta olan guvenilir fiyat bulunamadi. Mock veya eski veri kaydedilmedi.";
+            ? $"{savedRecords.Count} marketten fiyat güncellendi."
+            : "Bu ürün için şu an fiyat bulunamadı.";
 
-        return RedirectToAction(nameof(History), new { productId });
+        return RedirectToAction("Index", "Home");
     }
 
     public async Task<IActionResult> History(int? productId, int? marketId, DateTime? startDate, DateTime? endDate)

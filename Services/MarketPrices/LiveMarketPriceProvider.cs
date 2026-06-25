@@ -12,7 +12,8 @@ namespace BahceFiyatTakip.Services.MarketPrices;
 /// </summary>
 public partial class LiveMarketPriceProvider(
     HttpClient httpClient,
-    ILogger<LiveMarketPriceProvider> logger) : IMarketPriceProvider
+    ILogger<LiveMarketPriceProvider> logger,
+    PlaywrightPageFetcher pageFetcher) : IMarketPriceProvider
 {
     public string ProviderName => "MarketJson";
 
@@ -23,8 +24,25 @@ public partial class LiveMarketPriceProvider(
     {
         var targets = BuildTargets(product);
 
-        var tasks = markets
+        // Arama URL'i olan aktif marketler
+        var searchMarketIds = markets
             .Where(m => m.IsActive && !string.IsNullOrWhiteSpace(m.SearchUrlTemplate))
+            .Select(m => m.Id)
+            .ToHashSet();
+
+        // Direkt URL'i olan ama arama listesinde olmayan marketler (aktif değil olabilir)
+        var directLinkMarketIds = product.Varieties
+            .SelectMany(v => v.DirectLinks.Where(l => l.IsActive))
+            .Select(l => l.MarketId)
+            .Distinct()
+            .Where(id => !searchMarketIds.Contains(id))
+            .ToHashSet();
+
+        var allMarkets = markets
+            .Where(m => searchMarketIds.Contains(m.Id) || directLinkMarketIds.Contains(m.Id))
+            .ToList();
+
+        var tasks = allMarkets
             .Select(m => FetchMarketAsync(product, m, targets, cancellationToken));
 
         var results = await Task.WhenAll(tasks);
@@ -45,10 +63,51 @@ public partial class LiveMarketPriceProvider(
         CancellationToken cancellationToken)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(3));
+        cts.CancelAfter(TimeSpan.FromSeconds(12));
 
         try
         {
+            // ── ADIM 0: Direkt URL'ler (Excel'den elle girilmiş kesin ürün sayfaları) ──
+            var directLinks = product.Varieties
+                .SelectMany(v => v.DirectLinks.Where(l => l.MarketId == market.Id && l.IsActive))
+                .ToList();
+
+            foreach (var dl in directLinks)
+            {
+                var dTarget = targets.FirstOrDefault(t => t.VarietyId == dl.ProductVarietyId)
+                              ?? targets.FirstOrDefault();
+                if (dTarget is null) continue;
+
+                logger.LogInformation("{Market}: Direkt URL deneniyor: {Url}", market.Name, dl.DirectUrl);
+                var (dResult, _) = await FetchOneAsync(product, market, dTarget, dl.DirectUrl, cts.Token);
+                if (dResult is not null)
+                    // Direkt URL el ile doğrulanmış → confidence en az 75
+                    return dResult with { ConfidenceScore = Math.Max(dResult.ConfidenceScore, 75) };
+
+                // HttpClient başarısız → NetworkIdle bekleyen Playwright ile dene (JS-rendered sayfalar)
+                if (!pageFetcher.IsAvailable) continue;
+                logger.LogInformation("{Market}: Direkt URL Playwright (NetworkIdle) ile deneniyor: {Url}", market.Name, dl.DirectUrl);
+                var pwHtml = await pageFetcher.FetchProductPageAsync(dl.DirectUrl, cts.Token);
+                if (pwHtml is null) continue;
+                var pwDirItems = ExtractItems(pwHtml, market, dl.DirectUrl);
+                var pwDirBest  = pwDirItems.Count > 0 ? PickBest(pwDirItems, product, dTarget) : null;
+                if (pwDirBest is not null)
+                {
+                    logger.LogInformation("{Market}: Playwright direkt '{Title}' → {Price} TL", market.Name, pwDirBest.Title, pwDirBest.Price);
+                    return new MarketPriceResult(
+                        market.Id, market.Name,
+                        pwDirBest.Price, pwDirBest.Url ?? dl.DirectUrl, ProviderName,
+                        IsLive: true, ProductVarietyId: dTarget.VarietyId,
+                        MatchedTitle: pwDirBest.Title, ImageUrl: pwDirBest.ImageUrl,
+                        ConfidenceScore: Math.Max(pwDirBest.Score, 75));
+                }
+            }
+
+            // Direkt URL bulunamadı; arama URL'i yoksa çık
+            if (string.IsNullOrWhiteSpace(market.SearchUrlTemplate))
+                return null;
+
+            // ── ADIM 1: HttpClient ile arama ──
             bool marketSupportsJson = true;
             foreach (var target in targets.Take(2))
             {
@@ -60,11 +119,53 @@ public partial class LiveMarketPriceProvider(
                     return result;
             }
 
+            // HttpClient başarısız → Playwright ile dene (JS-render + WooCommerce ürün sayfaları)
+            if (!pageFetcher.IsAvailable)
+                return null;
+
+            foreach (var target in targets.Take(2))
+            {
+                var url = BuildUrl(market.SearchUrlTemplate!, target.Query);
+                logger.LogInformation("{Market}: Playwright ile deneniyor. Query: {Q}", market.Name, target.Query);
+
+                // Arama sayfasını yükle + WooCommerce ürün linklerini tek seferde al
+                var (rendered, productLinks) = await pageFetcher.FetchWithLinksAsync(
+                    url, "a.woocommerce-loop-product__link", cts.Token);
+
+                // Önce arama sonuçları sayfasından JSON çekmeyi dene
+                if (rendered is not null)
+                {
+                    var pwItems = ExtractItems(rendered, market, url);
+                    var pwBest = pwItems.Count > 0 ? PickBest(pwItems, product, target) : null;
+                    if (pwBest is not null)
+                    {
+                        logger.LogInformation("{Market}: Playwright '{Title}' → {Price} TL (score:{Score})", market.Name, pwBest.Title, pwBest.Price, pwBest.Score);
+                        return new MarketPriceResult(
+                            market.Id, market.Name,
+                            pwBest.Price, pwBest.Url ?? url, ProviderName,
+                            IsLive: true, ProductVarietyId: target.VarietyId,
+                            MatchedTitle: pwBest.Title, ImageUrl: pwBest.ImageUrl, ConfidenceScore: pwBest.Score);
+                    }
+                }
+
+                // JSON bulunamadı → WooCommerce ürün sayfalarını ziyaret et (JSON-LD var)
+                if (productLinks.Count > 0)
+                {
+                    logger.LogInformation("{Market}: {N} WooCommerce ürün linki, sayfalar ziyaret ediliyor. Query: {Q}", market.Name, productLinks.Count, target.Query);
+                    foreach (var productUrl in productLinks.Take(3))
+                    {
+                        var (result, _) = await FetchOneAsync(product, market, target, productUrl, cts.Token);
+                        if (result is not null)
+                            return result;
+                    }
+                }
+            }
+
             return null;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning("{Market} 3 saniye limitini aştı.", market.Name);
+            logger.LogWarning("{Market} 12 saniye limitini aştı.", market.Name);
             return null;
         }
     }
@@ -283,6 +384,16 @@ public partial class LiveMarketPriceProvider(
                                     "price", "currentPrice", "listPrice", "normalPrice",
                                     "amount", "value", "finalPrice");
 
+        // WooCommerce / JSON-LD schema.org: fiyat "offers" alt objesinin içinde olabilir
+        if ((rawPrice is null or <= 0) && el.TryGetProperty("offers", out var offersEl))
+        {
+            var offer = offersEl.ValueKind == JsonValueKind.Array
+                ? offersEl.EnumerateArray().FirstOrDefault()
+                : offersEl;
+            if (offer.ValueKind != JsonValueKind.Undefined)
+                rawPrice = GetPrice(offer, "price", "salePrice", "lowPrice", "highPrice");
+        }
+
         if (string.IsNullOrWhiteSpace(name) || rawPrice is null or <= 0)
             return null;
 
@@ -482,7 +593,7 @@ public partial class LiveMarketPriceProvider(
     private static bool IsOutOfStock(string? s)
     {
         if (string.IsNullOrWhiteSpace(s)) return false;
-        return Any(N(s), "stokta yok", "tukendi", "satis disi", "out of stock", "unavailable");
+        return Any(N(s), "stokta yok", "tukendi", "satis disi", "out of stock", "unavailable", "outofstock", "discontinued");
     }
 
     private static string? Resolve(string? url, string? baseUrl)

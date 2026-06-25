@@ -4,7 +4,7 @@ namespace BahceFiyatTakip.Services.MarketPrices;
 
 public class CompositeMarketPriceProvider(
     LiveMarketPriceProvider liveProvider,
-    BraveWebSearchPriceProvider braveProvider) : IMarketPriceProvider
+    BingWebSearchPriceProvider bingProvider) : IMarketPriceProvider
 {
     private const int MinimumConfidenceScore = 60;
 
@@ -26,7 +26,7 @@ public class CompositeMarketPriceProvider(
             return reliableLiveResults;
         }
 
-        var braveResults = await braveProvider.GetPricesAsync(product, markets, cancellationToken);
+        var braveResults = await bingProvider.GetPricesAsync(product, markets, cancellationToken);
 
         return FilterReliableLiveResults(braveResults)
             .OrderBy(result => result.MarketName)

@@ -33,22 +33,26 @@ public class HomeController : Controller
             .OrderByDescending(r => r.CheckedAt)
             .ToListAsync();
 
-        var summaries = products.Select(product =>
-        {
-            var productRecords = records
-                .Where(r => r.ProductId == product.Id)
-                .GroupBy(r => r.MarketId)
-                .Select(g => g.First())
-                .OrderBy(r => r.PricePerKg)
-                .ToList();
-
-            return new ProductPriceSummary
+        var summaries = products
+            .Select(product =>
             {
-                Product = product,
-                Prices = productRecords,
-                LastChecked = productRecords.Count > 0 ? productRecords.Max(r => r.CheckedAt) : null
-            };
-        }).ToList();
+                var productRecords = records
+                    .Where(r => r.ProductId == product.Id)
+                    .GroupBy(r => r.MarketId)
+                    .Select(g => g.First())
+                    .OrderBy(r => r.PricePerKg)
+                    .ToList();
+
+                return new ProductPriceSummary
+                {
+                    Product = product,
+                    Prices = productRecords,
+                    LastChecked = productRecords.Count > 0 ? productRecords.Max(r => r.CheckedAt) : null
+                };
+            })
+            .Where(s => s.Prices.Count > 0)
+            .OrderBy(s => s.Cheapest!.PricePerKg)
+            .ToList();
 
         var model = new DashboardViewModel
         {
