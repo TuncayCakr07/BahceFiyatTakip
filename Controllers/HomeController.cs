@@ -25,32 +25,52 @@ public class HomeController : Controller
             .OrderBy(p => p.Name)
             .ToListAsync();
 
-        var cutoff = DateTime.UtcNow.AddDays(-30);
-        var records = await _dbContext.PriceRecords
+        var now        = DateTime.UtcNow;
+        var cutoff60   = now.AddDays(-60);
+        var cutoff30   = now.AddDays(-30);
+        var cutoff7    = now.AddDays(-7);
+
+        var allRecords = await _dbContext.PriceRecords
             .Include(r => r.ProductVariety)
             .Include(r => r.Market)
-            .Where(r => r.IsLive && r.CheckedAt >= cutoff)
+            .Where(r => r.IsLive && r.CheckedAt >= cutoff60)
             .OrderByDescending(r => r.CheckedAt)
             .ToListAsync();
 
         var summaries = products
             .Select(product =>
             {
-                var productRecords = records
-                    .Where(r => r.ProductId == product.Id)
+                var prodRecs = allRecords.Where(r => r.ProductId == product.Id).ToList();
+
+                var currentPrices = prodRecs
+                    .Where(r => r.CheckedAt >= cutoff30)
                     .GroupBy(r => r.MarketId)
                     .Select(g => g.First())
                     .OrderBy(r => r.PricePerKg)
                     .ToList();
 
+                if (currentPrices.Count == 0) return null;
+
+                decimal? trendPct = null;
+                var prevRecs = prodRecs.Where(r => r.CheckedAt < cutoff7).ToList();
+                if (prevRecs.Count > 0)
+                {
+                    var curBest  = currentPrices[0].PricePerKg;
+                    var prevBest = prevRecs.Min(r => r.PricePerKg);
+                    if (prevBest > 0)
+                        trendPct = Math.Round((curBest - prevBest) / prevBest * 100m, 1);
+                }
+
                 return new ProductPriceSummary
                 {
-                    Product = product,
-                    Prices = productRecords,
-                    LastChecked = productRecords.Count > 0 ? productRecords.Max(r => r.CheckedAt) : null
+                    Product     = product,
+                    Prices      = currentPrices,
+                    LastChecked = currentPrices.Max(r => r.CheckedAt),
+                    TrendPct    = trendPct,
                 };
             })
-            .Where(s => s.Prices.Count > 0)
+            .Where(s => s is not null && s.Prices.Count > 0)
+            .Cast<ProductPriceSummary>()
             .OrderBy(s => s.Cheapest!.PricePerKg)
             .ToList();
 

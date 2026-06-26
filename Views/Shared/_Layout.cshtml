@@ -7,8 +7,19 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+<body class="@(ViewData["BodyClass"] ?? "")">
+
     <nav class="site-nav">
+        @if (IsSectionDefined("SidebarContent"))
+        {
+            <button class="nav-hamburger" id="sidebarToggle" title="Menüyü aç/kapat">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+            </button>
+        }
         <a class="brand" asp-controller="Home" asp-action="Index">Bahçe&nbsp;Fiyat</a>
         <ul class="nav-links">
             <li><a asp-controller="Home" asp-action="Index"
@@ -19,6 +30,14 @@
                    class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "Products" ? "active" : "")">Ürünler</a></li>
         </ul>
     </nav>
+
+    @if (IsSectionDefined("SidebarContent"))
+    {
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <aside class="sidebar" id="sidebar">
+            @await RenderSectionAsync("SidebarContent", required: false)
+        </aside>
+    }
 
     <div class="page-wrapper">
         <main>
