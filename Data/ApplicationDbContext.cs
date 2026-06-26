@@ -45,7 +45,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             new Product { Id = 10, Name = "Çarkıfelek",     Category = "Tropikal",  Unit = "Kg",    IsActive = true, CreatedAt = new DateTime(2026, 1, 1) },
             new Product { Id = 11, Name = "Mango",          Category = "Tropikal",  Unit = "Kg",    IsActive = true, CreatedAt = new DateTime(2026, 1, 1) },
             new Product { Id = 12, Name = "Domates",        Category = "Sebze",     Unit = "Kg",    IsActive = true, CreatedAt = new DateTime(2026, 1, 1) },
-            new Product { Id = 13, Name = "Limon Otu",      Category = "Diğer",     Unit = "Demet", IsActive = true, CreatedAt = new DateTime(2026, 1, 1) });
+            new Product { Id = 13, Name = "Limon Otu",      Category = "Diğer",     Unit = "Demet", IsActive = true, CreatedAt = new DateTime(2026, 1, 1) },
+            new Product { Id = 14, Name = "Reçel & Marmelat",   Category = "İşlenmiş",  Unit = "Adet",  IsActive = true, CreatedAt = new DateTime(2026, 1, 1) },
+            new Product { Id = 15, Name = "Nar Ekşisi",          Category = "İşlenmiş",  Unit = "Şişe",  IsActive = true, CreatedAt = new DateTime(2026, 1, 1) },
+            new Product { Id = 16, Name = "Kurutulmuş Ürünler",  Category = "İşlenmiş",  Unit = "Gr",    IsActive = true, CreatedAt = new DateTime(2026, 1, 1) },
+            new Product { Id = 17, Name = "Meyve Suyu",          Category = "İşlenmiş",  Unit = "Şişe",  IsActive = true, CreatedAt = new DateTime(2026, 1, 1) });
 
         // ── ÇEŞİTLER ─────────────────────────────────────────────────────────
         modelBuilder.Entity<ProductVariety>().HasData(
@@ -112,7 +116,27 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             new ProductVariety { Id = 49, ProductId = 12, Name = "CHERRY DOMATES",   Notes = "Kiraz domates; tatlı ve sulu." },
             // Limon Otu
             new ProductVariety { Id = 50, ProductId = 13, Name = "TAZE LİMON OTU",  Notes = "Taze demet; yemek ve çay için." },
-            new ProductVariety { Id = 51, ProductId = 13, Name = "KURUTULMUŞ",       Notes = "Kurutulmuş limon otu; çay için." });
+            new ProductVariety { Id = 51, ProductId = 13, Name = "KURUTULMUŞ",       Notes = "Kurutulmuş limon otu; çay için." },
+            // Reçel & Marmelat
+            new ProductVariety { Id = 52, ProductId = 14, Name = "PORTAKAL REÇELİ",     Notes = "Portakal kabuğu veya etinden yapılan reçel." },
+            new ProductVariety { Id = 53, ProductId = 14, Name = "TURUNÇ REÇELİ",        Notes = "Turunç kabuğu reçeli; acı aromalı." },
+            new ProductVariety { Id = 54, ProductId = 14, Name = "BERGAMOT REÇELİ",      Notes = "Bergamot kabuğu reçeli; yoğun aroma." },
+            new ProductVariety { Id = 55, ProductId = 14, Name = "LİMON REÇELİ",         Notes = "Limon kabuğu reçeli." },
+            new ProductVariety { Id = 56, ProductId = 14, Name = "KUMKUAT REÇELİ",       Notes = "Kumkuat reçeli; ekşi-tatlı." },
+            new ProductVariety { Id = 57, ProductId = 14, Name = "NAR REÇELİ",           Notes = "Nar reçeli veya nar tozu marmelatı." },
+            new ProductVariety { Id = 58, ProductId = 14, Name = "MANDALİNA MARMELATI",  Notes = "Mandalina marmelatı; tatlı-ekşi denge." },
+            new ProductVariety { Id = 59, ProductId = 14, Name = "KARIŞIK MARMELAT",     Notes = "Erik, armut, çarkıfelek vb. karışık marmelat." },
+            // Nar Ekşisi
+            new ProductVariety { Id = 60, ProductId = 15, Name = "NAR EKŞİSİ",           Notes = "Sıkma nar ekşisi; doğal veya organik." },
+            // Kurutulmuş Ürünler
+            new ProductVariety { Id = 61, ProductId = 16, Name = "KURUTULMUŞ NARENÇİYE", Notes = "Portakal, limon, mandalina, greyfurt cipsi ve kurusu." },
+            new ProductVariety { Id = 62, ProductId = 16, Name = "KAN PORTAKAL KURUSU",  Notes = "Kurutulmuş kan portakalı dilimi." },
+            new ProductVariety { Id = 63, ProductId = 16, Name = "NAR KURUSU",            Notes = "Kurutulmuş nar tanesi." },
+            new ProductVariety { Id = 64, ProductId = 16, Name = "KAFFİR LİME YAPRAĞI",  Notes = "Kurutulmuş kaffir lime yaprağı; yemeklerde kullanılır." },
+            new ProductVariety { Id = 65, ProductId = 16, Name = "LİME KURUSU",           Notes = "Kurutulmuş lime dilimi veya freeze-dry." },
+            // Meyve Suyu
+            new ProductVariety { Id = 66, ProductId = 17, Name = "NAR SUYU",              Notes = "Taze sıkma veya şişelenmiş nar suyu." },
+            new ProductVariety { Id = 67, ProductId = 17, Name = "LİMON SUYU",            Notes = "Taze sıkma veya şişelenmiş limon suyu." });
 
         modelBuilder.Entity<ProductSearchAlias>().HasData(BuildAllAliases());
     }
@@ -275,6 +299,41 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             new ProductSearchAlias { Id = 199, ProductVarietyId = 50, Query = "limon otu demet",          Priority = 3 },
             new ProductSearchAlias { Id = 201, ProductVarietyId = 51, Query = "kurutulmus limon otu",     Priority = 1 },
             new ProductSearchAlias { Id = 202, ProductVarietyId = 51, Query = "dried lemon grass",        Priority = 2 },
+            // Reçel & Marmelat
+            new ProductSearchAlias { Id = 205, ProductVarietyId = 52, Query = "portakal receli",          Priority = 1 },
+            new ProductSearchAlias { Id = 206, ProductVarietyId = 52, Query = "portakal kabugu receli",   Priority = 2 },
+            new ProductSearchAlias { Id = 209, ProductVarietyId = 53, Query = "turunc receli",            Priority = 1 },
+            new ProductSearchAlias { Id = 210, ProductVarietyId = 53, Query = "turunc kabugu receli",     Priority = 2 },
+            new ProductSearchAlias { Id = 213, ProductVarietyId = 54, Query = "bergamot receli",          Priority = 1 },
+            new ProductSearchAlias { Id = 214, ProductVarietyId = 54, Query = "bergamot kabugu receli",   Priority = 2 },
+            new ProductSearchAlias { Id = 217, ProductVarietyId = 55, Query = "limon receli",             Priority = 1 },
+            new ProductSearchAlias { Id = 218, ProductVarietyId = 55, Query = "limon kabugu receli",      Priority = 2 },
+            new ProductSearchAlias { Id = 221, ProductVarietyId = 56, Query = "kumkuat receli",           Priority = 1 },
+            new ProductSearchAlias { Id = 225, ProductVarietyId = 57, Query = "nar receli",               Priority = 1 },
+            new ProductSearchAlias { Id = 229, ProductVarietyId = 58, Query = "mandalina marmelati",      Priority = 1 },
+            new ProductSearchAlias { Id = 230, ProductVarietyId = 58, Query = "mandalina receli",         Priority = 2 },
+            new ProductSearchAlias { Id = 233, ProductVarietyId = 59, Query = "erik marmelati",           Priority = 1 },
+            new ProductSearchAlias { Id = 234, ProductVarietyId = 59, Query = "carkifelek marmelati",     Priority = 2 },
+            new ProductSearchAlias { Id = 235, ProductVarietyId = 59, Query = "armut marmelati",          Priority = 3 },
+            // Nar Ekşisi
+            new ProductSearchAlias { Id = 237, ProductVarietyId = 60, Query = "nar eksisi",               Priority = 1 },
+            new ProductSearchAlias { Id = 238, ProductVarietyId = 60, Query = "pomegranate molasses",     Priority = 2 },
+            new ProductSearchAlias { Id = 239, ProductVarietyId = 60, Query = "dogal nar eksisi",         Priority = 3 },
+            // Kurutulmuş Ürünler
+            new ProductSearchAlias { Id = 241, ProductVarietyId = 61, Query = "portakal kurusu",          Priority = 1 },
+            new ProductSearchAlias { Id = 242, ProductVarietyId = 61, Query = "mandalina cipsi",          Priority = 2 },
+            new ProductSearchAlias { Id = 243, ProductVarietyId = 61, Query = "limon kurusu",             Priority = 3 },
+            new ProductSearchAlias { Id = 245, ProductVarietyId = 62, Query = "kan portakal kurusu",      Priority = 1 },
+            new ProductSearchAlias { Id = 249, ProductVarietyId = 63, Query = "nar kurusu",               Priority = 1 },
+            new ProductSearchAlias { Id = 253, ProductVarietyId = 64, Query = "kaffir lime yapragi",      Priority = 1 },
+            new ProductSearchAlias { Id = 254, ProductVarietyId = 64, Query = "kurutulmus lime yaprak",   Priority = 2 },
+            new ProductSearchAlias { Id = 257, ProductVarietyId = 65, Query = "lime kurusu",              Priority = 1 },
+            new ProductSearchAlias { Id = 258, ProductVarietyId = 65, Query = "freeze dry lime",          Priority = 2 },
+            // Meyve Suyu
+            new ProductSearchAlias { Id = 261, ProductVarietyId = 66, Query = "nar suyu",                 Priority = 1 },
+            new ProductSearchAlias { Id = 262, ProductVarietyId = 66, Query = "pomegranate juice",        Priority = 2 },
+            new ProductSearchAlias { Id = 265, ProductVarietyId = 67, Query = "limon suyu",               Priority = 1 },
+            new ProductSearchAlias { Id = 266, ProductVarietyId = 67, Query = "lemon juice",              Priority = 2 },
         ];
     }
 

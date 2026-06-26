@@ -68,6 +68,57 @@ internal static class DirectUrlSeed
         ["hataykoy.com"]                = "Hatayköy Yöresel",
         ["organiklimon.com"]            = "Organik Limon",
         ["sahidenorganik.com"]          = "Sahiden Organik",
+        // İşlenmiş ürün marketleri
+        ["sekerhanim.com"]              = "Şeker Hanım",
+        ["antalyarecelcisi.com"]        = "Antalya Reçelcisi",
+        ["bodrumyadigari.com"]          = "Bodrum Yadigarı",
+        ["degirmencidede.com"]          = "Değirmencidede",
+        ["yoreselyasam.com"]            = "Yöreselyaşam",
+        ["dogalyasam.net"]              = "Doğalyaşam",
+        ["polsgurme.com"]               = "Pol's Gourme",
+        ["beyorganik.com"]              = "Beyorganik",
+        ["sofyaninarkabahcesi.com"]     = "Sofya'nınarkabahçesi",
+        ["arifoglu.com"]                = "Arifoğlu",
+        ["marketpaketi.com.tr"]         = "Marketpaketi(Ancora)",
+        ["ancora.com.tr"]               = "Ancora",
+        ["nartalya.com"]                = "Nartalya 950 Ml",
+        ["yorukana.com"]                = "Yörükana",
+        ["pttavm.com"]                  = "PTTAVM AOÇ 200 Ml",
+        ["elitenaturel.com"]            = "Elite Organic 200 ml 4'lü",
+        ["gurmeninyeri.com"]            = "Gurmenin yeri",
+        ["otcubitki.com"]               = "Otçu",
+        ["bizeikicay.com"]              = "İkiçay",
+        ["ciftcideneve.com"]            = "Çiftçideneve",
+        ["muskoshop.com"]               = "Musko",
+        ["kurual.com"]                  = "Kurual",
+        ["ozgurleblebi.com"]            = "Özgürleblebi",
+        ["egeyedonus.com"]              = "Ege'ye Dönüş",
+        ["malatyapazaripalanci.com.tr"] = "Malatya Pazarı",
+        ["birfincan.com"]               = "Birfincan",
+        ["onadeger.com"]                = "Onadeğer",
+        ["citlekci.com.tr"]             = "Çitlekçi",
+        ["fxfood.com.tr"]               = "f(x) food",
+        ["umitkuruyemis.com.tr"]        = "Ümit Kuruyemiş",
+        ["unalkuruyemis.com.tr"]        = "Ünal Kuruyemiş",
+        ["magaza.hammaddeler.com"]      = "Hammaddelergupguru",
+        ["altanaturel.com"]             = "AltaNaturel",
+        ["yenigunstore.com"]            = "Yenigün",
+        ["tazedukkan.com.tr"]           = "Taze Dükkan",
+        // Meyve suyu marketleri
+        ["egepazarindan.com"]           = "Ege Pazarından",
+        // Diğer yeni marketler
+        ["ardenmarket.com.tr"]          = "Arden Market",
+        ["dunyaninmeyvesi.com"]         = "Dünyanın Meyvesi",
+        ["hepsiburada.com"]             = "Hepsiburada",
+        ["mutlusebzeler.com"]           = "Mutlu Sebzeler",
+        ["n11.com"]                     = "N11",
+        ["nuhunambari.com"]             = "Nuhun Ambarı",
+        ["olbagro.com"]                 = "OlbAgro",
+        ["online.metro-tr.com"]         = "Metro",
+        ["panayirgourmet.com"]          = "Panayır Gurme",
+        ["pazarama.com"]                = "Pazarama",
+        ["tosmagaza.com"]               = "Tos Magaza",
+        ["tropikalturkiye.com"]         = "Tropikal Türkiye",
     };
 
     private static readonly (int VarietyId, string Url)[] Links =
@@ -430,6 +481,329 @@ internal static class DirectUrlSeed
         // LİMON OTU (50)
         (50, "https://www.yesillimon.com/limon-otu---100-gr"),
         (50, "https://egepazarindan.com/limon-otu-50-gr-lemon-grass/"),
+
+        // ══════════════════════════════════════════════════════
+        // EXCEL'DEN EKLENEN URL'LER (120 yeni)
+        // ══════════════════════════════════════════════════════
+
+        // SATSUMA (2)
+        (2, "https://www.anamurbahcesi.com/urun/mandalina-10-kg"),
+        (2, "https://www.gurmar.com.tr/mandalina-kg"),
+        (2, "https://www.carrefoursa.com/organik-mandalina-kg-p-30097505"),
+        (2, "https://www.macrocenter.com.tr/organik-mandalina-kg-p-1a04677"),
+        (2, "https://www.tazedukkan.com.tr/gumuldur-luks-satsuma-mandalina-5-kg-olgun-hasat"),
+        (2, "https://www.tazedukkan.com.tr/gumuldur-luks-satsuma-mandalina-10-kg-"),
+        (2, "https://www.sebzemeyvedunyasi.com/yesil-mandalina-kg"),
+        (2, "https://www.hediyelikbahcem.com/10kg-satsuma-clausellina-mandalina-2"),
+
+        // MAYER LİMON (6)
+        (6, "https://toplasepeti.com/mayer-limon-5-kg"),
+
+        // LAMAS LİMON (9)
+        (9, "https://www.yesillimon.com/yesil-limon-1kg"),
+        (9, "https://www.tropiksepeti.com/urun/limon"),
+        (9, "https://www.organikgiller.com/product-page/organik-limon-kg"),
+        (9, "https://www.macrocenter.com.tr/tazedirekt-limon-organik-kg-p-1a05dd9"),
+        (9, "https://www.macrocenter.com.tr/organik-limon-kg-p-19ff466"),
+        (9, "https://olbagro.com/urun/5-kg-dalindan-dogal-kutdiken-limon"),
+
+        // LIME (13)
+        (13, "https://www.tropiksepeti.com/urun/lime-limon-1-kg"),
+        (13, "https://www.macrocenter.com.tr/verita-limes-3-lu-pkt-p-1a013c8"),
+        (13, "https://tazegel.com/urun/limon-lime-1-kasa-8-kg"),
+        (13, "https://www.sebzemeyvedunyasi.com/lime-limon"),
+        (13, "https://www.dunyaninmeyvesi.com/lime-3lu-paket"),
+        (13, "https://soyleyerinden.com/yoresinden-hemen-soyle/akdeniz/lime-5-kg"),
+
+        // WASHINGTON PORTAKAL (21)
+        (21, "https://www.istegelsin.com/urun/portakal-1-kg_MS50-AD"),
+        (21, "https://www.fresh.com.tr/urun/portakal-washington-kg"),
+        (21, "https://www.fresh.com.tr/urun/portakal-cavdir-kg"),
+        (21, "https://www.turkuazkoy.com/sikmalik-finike-portakali"),
+        (21, "https://www.fresh.com.tr/urun/mv-portakal-sikma-kg"),
+        (21, "https://www.portakalbahcem.com/ilk-hasat-finike-portakali-yemelik-washington-3-kg-pwf002"),
+        (21, "https://www.migros.com.tr/m-life-organik-portakal-kg-paket-ort-520-g-p-1a0abfa"),
+        (21, "https://www.portakalbahcem.com/finike-portakali-sikmalik-washington-3-kg-pwf007"),
+        (21, "https://www.macrocenter.com.tr/tazedirekt-portakal-organik-kg-p-1a0abf8"),
+        (21, "https://www.macrocenter.com.tr/organik-portakal-sikma-kg-p-1a090a2"),
+        (21, "https://ardenmarket.com.tr/catalog/product/view/id/1859/s/manav-portakal-finike-lux-kg-1"),
+        (21, "https://buyukannem.com/urun/portakal"),
+        (21, "https://www.datcamuratciftligi.com/urun/organik-sikmalik-portakal-paketi-3-kg-1"),
+        (21, "https://www.sebzemeyvedunyasi.com/cavdir-portakal-kg"),
+        (21, "https://www.turuncubag.com/yafa-portakali-13.5-kg"),
+        (21, "https://www.portakalbahcem.com/yafa-portakal-3-kg-pyf001"),
+
+        // VALENSİYA PORTAKAL (22)
+        (22, "https://www.gulenbahce.com/urun/valencia-yerli-portakal-sulu-dogal-10-kg"),
+        (22, "https://www.macrocenter.com.tr/portakal-organik-kg-p-1a0ac4f"),
+        (22, "https://www.gurmar.com.tr/portakal-valencia-kg"),
+        (22, "https://www.pazarama.com/kb-koycegiz-yoresel-koycegiz-portakali-valensiya-sikmalik-8-kg-p-8680030581131"),
+        (22, "https://online.metro-tr.com/portakal-yemelik-p-282624"),
+
+        // MYSTİCRİMSON KAN PORTAKAL (23)
+        (23, "https://turuncubag.com/urun/kan-portakali-3-kg"),
+        (23, "https://nuribeyciftligi.com/portakal-cara-cara-3kg"),
+
+        // HASS AVOKADO (26)
+        (26, "https://www.carrefoursa.com/avokado-adet-p-30281297"),
+        (26, "https://www.tazedukkan.com.tr/yerli-finike-avokado-10-adet-urun1781.html"),
+        (26, "https://www.tazemasa.com/5li-avokado-gazipasaantalya-5368"),
+        (26, "https://www.portakalbahcem.com/avokado-5-adet-avf004"),
+        (26, "https://www.portakalbahcem.com/avokado-8-adet-avf005"),
+        (26, "https://www.portakalbahcem.com/avokado-14-adet-avf006"),
+        (26, "https://www.yesillimon.com/avokado-zutano---1-kg"),
+        (26, "https://www.portakalbahcem.com/puturlu-avokado-8-adet-avf101"),
+        (26, "https://www.portakalbahcem.com/puturlu-avokado-14-adet-avf102"),
+        (26, "https://www.tazedukkan.com.tr/talat-celik-organik-sertifikali-avokado"),
+        (26, "https://www.avokadocuayse.com/urunlerimiz/hass-avokado-160-gram-ve-uzeri"),
+        (26, "https://www.portakalbahcem.com/puturlu-avokado-3-kg"),
+        (26, "https://www.portakalbahcem.com/puturlu-avokado-1-5-kg"),
+        (26, "https://www.tropiksepeti.com/urun/tropik-sepeti-hass-avokado-15-adet-199"),
+        (26, "https://www.tropiksepeti.com/urun/clifton-avokado-1-adet-100-350gr-709-1"),
+        (26, "https://www.tropiksepeti.com/urun/avokado-20-adet"),
+        (26, "https://www.avokadolu.com/yerli-avokado-24-adet"),
+        (26, "https://www.avokadolu.com/yerli-avokado-48-adet"),
+        (26, "https://www.portakalbahcem.com/avokado-3-kg"),
+        (26, "https://www.portakalbahcem.com/avokado-1-5-kg"),
+        (26, "https://www.macrocenter.com.tr/avokado-adet-p-1ab6625"),
+        (26, "https://www.tropiksepeti.com/urun/avokado-10-adet"),
+
+        // BACON AVOKADO (28)
+        (28, "https://www.anamurbahcesi.com/urun/organik-bacon-avokado-4-adet"),
+        (28, "https://www.yesillimon.com/avokado-bacon-1-kg"),
+
+        // FUERTE AVOKADO (29)
+        (29, "https://www.anamurbahcesi.com/urun/4-adet-organik-avokado"),
+        (29, "https://www.avokadocuayse.com/urunlerimiz/fuerte-avokado"),
+        (29, "https://www.avokadocuayse.com/urunlerimiz/buyuk-boy-fuerte-avokado"),
+
+        // KUMKUAT (32)
+        (32, "https://gurmar.com.tr/kumkuat-kg"),
+        (32, "https://www.tazedukkan.com.tr/kumkuat-200gr-paket"),
+        (32, "https://www.fresh.com.tr/urun/mnv-kumkuat-kg"),
+        (32, "https://www.istegelsin.com/urun/kumkuat-200-g_MS318-AD"),
+
+        // ŞADOK (33)
+        (33, "https://www.hepsiburada.com/sebze-meyve-dunyasi-pomelo-p-HBCV000011WJJZ"),
+        (33, "https://panayirgourmet.com/products/pomelo"),
+
+        // KIRMIZI GREYFURT (35)
+        (35, "https://www.portakalbahcem.com/kirmizi-greyfurt-2-5-kg-gkf001"),
+        (35, "https://toplasepeti.com/greyfurt-1-kg"),
+        (35, "https://www.tazemasa.com/organik-greyfurt-kg--937"),
+        (35, "https://www.eskitadinda.com/greyfurt-p"),
+        (35, "https://www.portakalbahcem.com/sikmalik-kirmizi-greyfurt-3-kg"),
+        (35, "https://tazegel.com/urun/greyfurt"),
+        (35, "https://www.tazemasa.com/greyfurt-mersin-kg-20"),
+
+        // TURUNÇ (37)
+        (37, "https://www.n11.com/urun/dogalkasa-taze-turunc-3-kg-1633764"),
+        (37, "https://www.organiklimon.com/urun/turunc-15kg-kutu"),
+
+        // HİCAZ NAR (38)
+        (38, "https://www.tazemasa.com/nar-finike-kg-29"),
+        (38, "https://www.macrocenter.com.tr/organik-nar-kg-p-1a0699d"),
+        (38, "https://www.tazedirekt.com/organik-sikmalik-nar-1-kg-p-1a069a6"),
+        (38, "https://www.portakalbahcem.com/sikmalik-hicaz-nar-3-kg-nhf003"),
+        (38, "https://www.fresh.com.tr/urun/sikmalik-nar-kg"),
+        (38, "https://www.carrefoursa.com/nar-organik-kg-p-30091647"),
+        (38, "https://www.macrocenter.com.tr/tazedirekt-organik-nar-kg-p-1a069df"),
+        (38, "https://www.sariyermarket.com/nar-eksi-kg"),
+        (38, "https://www.gurmekoy.com/nar-finike-kg"),
+        (38, "https://www.enmanav.com/nar-kg1"),
+
+        // KIRMIZI EJDER MEYVESİ (40)
+        (40, "https://tropikalturkiye.com/urun/ejder-meyvesi"),
+        (40, "https://www.yesillimon.com/pitaya-ejdermeyvesi"),
+        (40, "https://www.hepsiburada.com/kuzey-tropik-yerli-ejder-meyvesi-1-adet-pm-HBC00004HQQUY"),
+        (40, "https://www.hepsiburada.com/sebze-meyve-dunyasi-ejder-meyvesi-pitahaya-1-adet-pm-HBC00000ULTPN"),
+        (40, "https://soyleyerinden.com/meyve/kirmizi-ejder-meyvesi-1-kg"),
+        (40, "https://tazegel.com/urun/ejder-meyvesi-kirmizi"),
+        (40, "https://www.avokadocuayse.com/urunlerimiz/1-adet-beyaz-ejder-meyvesi"),
+
+        // MOR ÇARKIFELEK (42)
+        (42, "https://www.anamurbahcesi.com/urun/carkifelek-2-adet"),
+        (42, "https://www.tazemasa.com/passion-fruit-carkifelek-excelente-5664"),
+        (42, "https://www.tazedukkan.com.tr/carkifelek-meyvesi-3lu-paket-"),
+        (42, "https://www.tazemasa.com/carkifelek-passion-fruit-3-lu-paket-73"),
+        (42, "https://www.tropiksepeti.com/urun/carkifelek-4-adet-401"),
+        (42, "https://www.tropiksepeti.com/urun/aroma-dolu-olgun-carkifelek-meyvesi-4-adet-698"),
+        (42, "https://soyleyerinden.com/meyve-sebze/carkifelek-passion-fruit-3-kg-45-50-adet"),
+
+        // KENT MANGO (44)
+        (44, "https://www.tropiksepeti.com/urun/mango-1-adet-yerli-750-1000-gr"),
+        (44, "https://www.avokadocuayse.com/urunlerimiz/1-adet-yerli-mango-500-700-gram"),
+        (44, "https://www.dunyaninmeyvesi.com/yemeye-hazir-mango-paket"),
+
+        // SALKIMLI DOMATES (47)
+        (47, "https://panayirgourmet.com/products/pembe-domates"),
+        (47, "https://www.macrocenter.com.tr/tazedirekt-organik-domates-kg-koy-p-1ac9aaf"),
+        (47, "https://www.macrocenter.com.tr/tazedirekt-pembe-domates-kg-p-1ac9b4c"),
+        (47, "https://buyukannem.com/urun/domates-pembe"),
+        (47, "https://www.nuhunambari.com/Organik-Pembe-Domates-kg,PR-1927.html"),
+
+        // LİMON OTU (50)
+        (50, "https://mutlusebzeler.com/urun/limon-otu"),
+        (50, "https://www.tosmagaza.com/limon-otu-50-gr"),
+
+        // ══════════════════════════════════════════════════════
+        // REÇEL & MARMELAT
+        // ══════════════════════════════════════════════════════
+
+        // PORTAKAL REÇELİ (52)
+        (52, "https://www.portakalbahcem.com/portakal-receli-290-gr"),
+        (52, "https://www.migros.com.tr/yenigun-seker-ilavesiz-portakal-kabugu-receli-290-g-p-89b2bc"),
+        (52, "https://www.yenigunstore.com/seker-ilavesiz-portakal-kabugu-receli-290-gr"),
+        (52, "https://sekerhanim.com/urun/seker-ilavesiz-urunler/seker-ilavesiz-portakal-receli-300-gr"),
+        (52, "https://www.antalyarecelcisi.com/urun/portakal-kabugu-receli-370g-rafine-seker-ilavesiz"),
+        (52, "https://www.antalyarecelcisi.com/urun/antalya-recelcisi-portakal-kabugu-receli-290g-rafine-seker-ilavesiz-2709"),
+        (52, "https://bodrumyadigari.com/recel-marmelat/receller/prd-seker-ilavesiz-portakal-receli-250gr"),
+        (52, "https://www.polsgurme.com/polsgurme-portakal-receli-chia-tohumlu-seker-ilavesiz-e-meyve-oranli-380-gr"),
+
+        // TURUNÇ REÇELİ (53)
+        (53, "https://www.portakalbahcem.com/turunc-receli-290-gr"),
+        (53, "https://www.yenigunstore.com/seker-ilavesiz-turunc-kabugu-receli-290-gr"),
+        (53, "https://www.antalyarecelcisi.com/urun/turunc-kabugu-receli-370g-rafine-seker-ilavesiz"),
+        (53, "https://www.antalyarecelcisi.com/urun/antalya-recelcisi-turunc-kabugu-receli-290g-rafine-seker-ilavesiz-2697"),
+        (53, "https://sekerhanim.com/urun/seker-ilavesiz-urunler/seker-ilavesiz-turunc-receli-300-gr"),
+        (53, "https://bodrumyadigari.com/recel-marmelat/receller/prd-seker-ilavesiz-turunc-receli-250gr"),
+        (53, "https://tazedukkan.com.tr/seker-ilavesiz-turunc-receli-300-gr-urun552.html"),
+
+        // BERGAMOT REÇELİ (54)
+        (54, "https://www.portakalbahcem.com/bergamot-receli-290-gr"),
+        (54, "https://www.yenigunstore.com/seker-ilavesiz-bergamot-kabugu-receli-290-gr"),
+        (54, "https://www.antalyarecelcisi.com/urun/bergamot-kabugu-receli-370g-rafine-seker-ilavesiz"),
+        (54, "https://sekerhanim.com/urun/seker-ilavesiz-urunler/seker-ilavesiz-bergamot-receli-300-gr"),
+        (54, "https://bodrumyadigari.com/recel-marmelat/receller/prd-seker-ilavesiz-bergamot-receli-250gr"),
+
+        // LİMON REÇELİ (55)
+        (55, "https://www.portakalbahcem.com/limon-receli-290-gr"),
+        (55, "https://www.migros.com.tr/yenigun-seker-ilavesiz-limon-kabugu-receli-290-g-p-89b2bd"),
+        (55, "https://www.yenigunstore.com/seker-ilavesiz-limon-kabugu-receli-290-gr"),
+        (55, "https://www.antalyarecelcisi.com/urun/limon-kabugu-receli-370g-rafine-seker-ilavesiz"),
+        (55, "https://www.antalyarecelcisi.com/urun/antalya-recelcisi-limon-kabugu-receli-290g-rafine-seker-ilavesiz-2710"),
+        (55, "https://bodrumyadigari.com/recel-marmelat/receller/prd-seker-ilavesiz-limon-receli-250gr"),
+
+        // KUMKUAT REÇELİ (56)
+        (56, "https://www.portakalbahcem.com/kumkuat-receli-290-gr"),
+
+        // NAR REÇELİ (57)
+        (57, "https://www.portakalbahcem.com/nar-receli-290-gr"),
+        (57, "https://www.polsgurme.com/polsgurme-nar-receli-chia-tohumlu-seker-ilavesiz-e-meyve-oranli-380-gr"),
+
+        // MANDALİNA MARMELATI (58)
+        (58, "https://www.portakalbahcem.com/mandalina-receli-290-gr"),
+        (58, "https://www.yenigunstore.com/yenigun-seker-ilavesiz-mandalina-receli-290-gr"),
+        (58, "https://sekerhanim.com/urun/seker-ilavesiz-urunler/seker-ilavesiz-mandalina-marmelati-300-gr"),
+        (58, "https://tazedukkan.com.tr/seker-hanim-mandalina-marmelati-300-gr-urun1632.html"),
+
+        // KARIŞIK MARMELAT (59)
+        (59, "https://www.portakalbahcem.com/seker-ilavesiz-erik-marmelati-290-gr-rl-128"),
+        (59, "https://www.portakalbahcem.com/seker-ilavesiz-armut-marmelati-290-gr-rl-127"),
+        (59, "https://www.portakalbahcem.com/seker-ilavesiz-carkifelek-marmelati-290-gr-rl-119"),
+        (59, "https://sekerhanim.com/urun/seker-ilavesiz-urunler/seker-ilavesiz-murdum-erik-receli-300-gr"),
+        (59, "https://www.polsgurme.com/polsgurme-erik-receli-chia-tohumlu-seker-ilavesiz-e-meyve-oranli-380-gr"),
+
+        // ══════════════════════════════════════════════════════
+        // NAR EKŞİSİ (60)
+        // ══════════════════════════════════════════════════════
+        (60, "https://www.portakalbahcem.com/nar-eksisi-330-gr"),
+        (60, "https://www.fresh.com.tr/urun/sade-330-gr-organik-nar-eksisi"),
+        (60, "https://www.migros.com.tr/kuhne-100-nar-eksisi-250-ml-p-fa6999"),
+        (60, "https://www.macrocenter.com.tr/punica-sadece-nar-eksisi-250-ml-p-5c1688"),
+        (60, "https://www.yesillimon.com/hakiki-nar-eksisi-350-gr"),
+        (60, "https://www.ancora.com.tr/urun/nar-eksisi-350gr"),
+        (60, "https://www.marketpaketi.com.tr/ancora-organik-100-nar-eksisi-350-gr-p-946"),
+        (60, "https://www.beyorganik.com/organik-nar-eksisi-250ml"),
+        (60, "https://www.sofyaninarkabahcesi.com/nar-eksisi-hakiki-organik"),
+        (60, "https://www.sofyaninarkabahcesi.com/nar-eksisi-hakiki-organik-700cc"),
+        (60, "https://www.arifoglu.com/100-nar-eksisi-238-ml-320-g"),
+        (60, "https://www.degirmencidede.com/urun/nar-eksisi-ev-yapimi-katkisiz"),
+        (60, "https://www.yoreselyasam.com/urun/ev-yapimi-nar-eksisi"),
+        (60, "https://www.dogalyasam.net/sultan-gazi-nar-eksisi-dogal-ev-yapimi"),
+        (60, "https://bodrumyadigari.com/sos-pekmez-sirke/prd-nar-eksisi-1000ml"),
+        (60, "https://bodrumyadigari.com/sos-pekmez-sirke/prd-nar-eksisi-200ml"),
+        (60, "https://www.sariyermarket.com/nar-eksi-kg"),
+
+        // ══════════════════════════════════════════════════════
+        // KURUTULMUŞ ÜRÜNLER
+        // ══════════════════════════════════════════════════════
+
+        // KURUTULMUŞ NARENÇİYE (61)
+        (61, "https://egepazarindan.com/kurutulmus-portakal-100-gr-koycegiz-portakal-cipsi"),
+        (61, "https://egepazarindan.com/mandalina-cipsi-100-gr-kurutulmus-koycegiz-mandalinasi"),
+        (61, "https://www.yesillimon.com/portakal-kurusu-100-gr"),
+        (61, "https://www.nuribeyciftligi.com/urun/kurutulmus-portakal-dilimleri"),
+        (61, "https://www.nuribeyciftligi.com/urun/kurutulmus-limon-dilimleri"),
+        (61, "https://www.datcamuratciftligi.com/urun/portakal-kurusu-50-gr"),
+        (61, "https://www.datcamuratciftligi.com/urun/mandalina-kurusu-50-gr"),
+        (61, "https://www.portakalbahcem.com/kurutulmus-portakal-dilimi-100gr"),
+        (61, "https://www.altanaturel.com/urun/portakal-cipsi-100-gr"),
+        (61, "https://www.altanaturel.com/urun/mandalina-cipsi-100-gr"),
+        (61, "https://www.altanaturel.com/urun/greyfurt-cipsi-100-gr"),
+        (61, "https://www.muskoshop.com/portakal-kurusu-kg"),
+        (61, "https://www.muskoshop.com/mandalina-kurusu-kg"),
+        (61, "https://www.muskoshop.com/limon-kurusu-kg"),
+        (61, "https://www.muskoshop.com/greyfurt-kurusu-kg"),
+        (61, "https://www.muskoshop.com/freeze-dry-portakal-20-gr"),
+        (61, "https://www.muskoshop.com/freeze-dry-limon-20-gr"),
+        (61, "https://www.kurual.com/kuru-portakal"),
+        (61, "https://www.ozgurleblebi.com/Kuru-Portakal-Cips-Dogal"),
+        (61, "https://www.egeyedonus.com/portakal-kurusu"),
+        (61, "https://www.egeyedonus.com/limon-kurusu"),
+        (61, "https://birfincan.com/urunler/kurutulmus-limon-dilimleri-100-gr"),
+        (61, "https://www.onadeger.com/kurutulmus-limon-dilimleri-30-gr"),
+        (61, "https://www.malatyapazaripalanci.com.tr/yerli-limon-kurusu-100-g"),
+        (61, "https://www.fxfood.com.tr/greyfurt-kurusu-100-g"),
+        (61, "https://www.umitkuruyemis.com.tr/tropikal-kuru-greyfurt"),
+        (61, "https://unalkuruyemis.com.tr/kurutulmus-portakal-200-gr-paket"),
+        (61, "https://magaza.hammaddeler.com/urun/kurutulmus-portakal-100-g"),
+        (61, "https://bodrumyadigari.com/kurutulmus-urunler/meyve-kurulari/prd-nar-kurusu-100gr"),
+        (61, "https://bodrumyadigari.com/kurutulmus-urunler/cipsler/prd-mandalin-cips-150-gr"),
+        (61, "https://bodrumyadigari.com/kurutulmus-urunler/cipsler/prd-mandalin-cips-45gr"),
+        (61, "https://bodrumyadigari.com/kurutulmus-urunler/cipsler/prd-mandalin-cips-25gr"),
+        (61, "https://www.citlekci.com.tr/dogal-kurutulmus-limon-kurusu"),
+        (61, "https://www.hepsiburada.com/dogal-kuru-limon-cips-kurusu-30g-pm-HBC00001MLZMQ"),
+
+        // KAN PORTAKAL KURUSU (62)
+        (62, "https://www.portakalbahcem.com/kurutulmus-kan-portakal-dilimi-100gr"),
+        (62, "https://www.datcamuratciftligi.com/urun/kan-portakali-kurusu-50-g"),
+        (62, "https://www.muskoshop.com/kan-portakal-kurusu-kg"),
+
+        // NAR KURUSU (63)
+        (63, "https://www.portakalbahcem.com/kurutulmus-nar-tanesi-300-gr-kk-022"),
+
+        // KAFFİR LİME YAPRAĞI (64)
+        (64, "https://www.portakalbahcem.com/kurutulmus-kaffir-lime-yapragi-50-gr"),
+        (64, "https://www.otcubitki.com/urun/kaffir-lime-kaffir-limi-yaprak-20-g"),
+        (64, "https://www.bizeikicay.com/urun/kabuk-bergamot"),
+
+        // LİME KURUSU (65)
+        (65, "https://www.portakalbahcem.com/kurutulmus-lime-dilimi-100-gr"),
+        (65, "https://www.muskoshop.com/freeze-dry-lime-15-gr"),
+        (65, "https://ciftcideneve.com/urun/6769/lime-kurusu-100-gr-dogal-organik-kuru-meyve"),
+        (65, "https://www.soyleyerinden.com/meyve-kurusu/lime-kurusu-100-gr"),
+
+        // ══════════════════════════════════════════════════════
+        // MEYVE SUYU
+        // ══════════════════════════════════════════════════════
+
+        // NAR SUYU (66)
+        (66, "https://www.portakalbahcem.com/taze-sikma-nar-950-ml"),
+        (66, "https://www.portakalbahcem.com/taze-sikma-nar-6-200-ml"),
+        (66, "https://www.fresh.com.tr/urun/ben-organik-250-ml-nar-suyu"),
+        (66, "https://www.macrocenter.com.tr/exotic-nar-suyu-750-cc-p-7b2dda"),
+        (66, "https://www.carrefoursa.com/naren-100-sikma-nar-suyu-250-ml-cam-sise-p-30252814"),
+        (66, "https://www.elitenaturel.com/urun/organik-nar-suyu-200-ml"),
+        (66, "https://www.nartalya.com/urun/nartalya-dondurulmus-nar-suyu-900-ml"),
+        (66, "https://www.nartalya.com/urun/nartalya-dondurulmus-nar-suyu"),
+        (66, "https://yorukana.com/yoruk-ana-geleneksel-0-nar-suyu-1-lt"),
+        (66, "https://www.pttavm.com/nar-suyu-200-ml-p-61563270"),
+
+        // LİMON SUYU (67)
+        (67, "https://www.portakalbahcem.com/taze-sikma-limon-950-ml"),
+        (67, "https://www.yesillimon.com/limonsuyu"),
+        (67, "https://www.gurmeninyeri.com/tr/global-yuzde-100-dogal-limon-suyu-1-lt"),
     ];
 
     public static async Task EnsureSeededAsync(ApplicationDbContext db, CancellationToken ct = default)
