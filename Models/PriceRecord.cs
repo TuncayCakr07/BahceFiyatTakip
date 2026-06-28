@@ -24,7 +24,7 @@ public class PriceRecord
     public decimal PricePerKg { get; set; }
 
     [Display(Name = "Kontrol Tarihi")]
-    public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CheckedAt { get; set; } = DateTime.Now;
 
     [StringLength(500)]
     public string? SourceUrl { get; set; }

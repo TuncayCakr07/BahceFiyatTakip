@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using BahceFiyatTakip.Models;
+using BahceFiyatTakip.Services.MarketPrices.Extractors;
 
 namespace BahceFiyatTakip.Services.MarketPrices;
 
@@ -32,7 +33,7 @@ public partial class LiveMarketPriceProvider(
 
         // Direkt URL'i olan ama arama listesinde olmayan marketler (aktif değil olabilir)
         var directLinkMarketIds = product.Varieties
-            .SelectMany(v => v.DirectLinks.Where(l => l.IsActive))
+            .SelectMany(v => v.DirectLinks.Where(l => l.IsActive && !string.IsNullOrEmpty(l.DirectUrl)))
             .Select(l => l.MarketId)
             .Distinct()
             .Where(id => !searchMarketIds.Contains(id))
@@ -42,8 +43,36 @@ public partial class LiveMarketPriceProvider(
             .Where(m => searchMarketIds.Contains(m.Id) || directLinkMarketIds.Contains(m.Id))
             .ToList();
 
-        var tasks = allMarkets
-            .Select(m => FetchMarketAsync(product, m, targets, cancellationToken));
+        // Aynı anda en fazla 3 market isteği
+        using var throttle = new SemaphoreSlim(3, 3);
+
+        var tasks = allMarkets.Select(async m =>
+        {
+            // Bu markete link'i olan çeşitlerin search target'larını filtrele (req 1)
+            var linkedVarietyIds = product.Varieties
+                .SelectMany(v => v.DirectLinks.Where(l => l.MarketId == m.Id && l.IsActive))
+                .Select(l => l.ProductVarietyId)
+                .ToHashSet();
+
+            var effectiveTargets = targets;
+            if (linkedVarietyIds.Count > 0)
+            {
+                var filtered = targets
+                    .Where(t => !t.VarietyId.HasValue || linkedVarietyIds.Contains(t.VarietyId.Value))
+                    .ToList();
+                if (filtered.Count > 0) effectiveTargets = filtered;
+            }
+
+            await throttle.WaitAsync(cancellationToken);
+            try
+            {
+                return await FetchMarketAsync(product, m, effectiveTargets, cancellationToken);
+            }
+            finally
+            {
+                throttle.Release();
+            }
+        });
 
         var results = await Task.WhenAll(tasks);
 
@@ -69,7 +98,7 @@ public partial class LiveMarketPriceProvider(
         {
             // ── ADIM 0: Direkt URL'ler (Excel'den elle girilmiş kesin ürün sayfaları) ──
             var directLinks = product.Varieties
-                .SelectMany(v => v.DirectLinks.Where(l => l.MarketId == market.Id && l.IsActive))
+                .SelectMany(v => v.DirectLinks.Where(l => l.MarketId == market.Id && l.IsActive && !string.IsNullOrEmpty(l.DirectUrl)))
                 .ToList();
 
             foreach (var dl in directLinks)
@@ -94,11 +123,12 @@ public partial class LiveMarketPriceProvider(
                 if (pwDirBest is not null)
                 {
                     logger.LogInformation("{Market}: Playwright direkt '{Title}' → {Price} TL", market.Name, pwDirBest.Title, pwDirBest.Price);
+                    var pwDirImg = pwDirBest.ImageUrl ?? ExtractHtmlImage(pwHtml, market.BaseUrl);
                     return new MarketPriceResult(
                         market.Id, market.Name,
                         pwDirBest.Price, pwDirBest.Url ?? dl.DirectUrl, ProviderName,
                         IsLive: true, ProductVarietyId: dTarget.VarietyId,
-                        MatchedTitle: pwDirBest.Title, ImageUrl: pwDirBest.ImageUrl,
+                        MatchedTitle: pwDirBest.Title, ImageUrl: pwDirImg,
                         ConfidenceScore: Math.Max(pwDirBest.Score, 75));
                 }
             }
@@ -140,11 +170,12 @@ public partial class LiveMarketPriceProvider(
                     if (pwBest is not null)
                     {
                         logger.LogInformation("{Market}: Playwright '{Title}' → {Price} TL (score:{Score})", market.Name, pwBest.Title, pwBest.Price, pwBest.Score);
+                        var pwImg = pwBest.ImageUrl ?? ExtractHtmlImage(rendered, market.BaseUrl);
                         return new MarketPriceResult(
                             market.Id, market.Name,
                             pwBest.Price, pwBest.Url ?? url, ProviderName,
                             IsLive: true, ProductVarietyId: target.VarietyId,
-                            MatchedTitle: pwBest.Title, ImageUrl: pwBest.ImageUrl, ConfidenceScore: pwBest.Score);
+                            MatchedTitle: pwBest.Title, ImageUrl: pwImg, ConfidenceScore: pwBest.Score);
                     }
                 }
 
@@ -157,6 +188,22 @@ public partial class LiveMarketPriceProvider(
                         var (result, _) = await FetchOneAsync(product, market, target, productUrl, cts.Token);
                         if (result is not null)
                             return result;
+                    }
+                }
+
+                // WooCommerce link yok → NopCommerce arama sayfasından ürün linkleri çıkar
+                if (productLinks.Count == 0 && rendered is not null && NopCommercePriceExtractor.IsMatch(rendered))
+                {
+                    var nopLinks = ExtractNopCommerceLinks(rendered, market.BaseUrl);
+                    if (nopLinks.Count > 0)
+                    {
+                        logger.LogInformation("{Market}: {N} NopCommerce ürün linki bulundu. Query: {Q}", market.Name, nopLinks.Count, target.Query);
+                        foreach (var productUrl in nopLinks.Take(5))
+                        {
+                            var (result, _) = await FetchOneAsync(product, market, target, productUrl, cts.Token);
+                            if (result is not null)
+                                return result;
+                        }
                     }
                 }
             }
@@ -198,16 +245,17 @@ public partial class LiveMarketPriceProvider(
             bool isPureJson = trimmed.StartsWith('{') || trimmed.StartsWith('[');
             bool hasEmbeddedJson = !isPureJson && (NextDataRegex().IsMatch(body) || LdJsonRegex().IsMatch(body));
 
-            if (!isPureJson && !hasEmbeddedJson)
-            {
-                logger.LogInformation("{Market}: HTML yanıt (JSON yok), atlanıyor. Query: {Q}", market.Name, target.Query);
-                return (null, false);
-            }
-
             // isPureJson = supports retry; hasEmbeddedJson = one-shot only
             bool hasJson = isPureJson;
 
             var items = ExtractItems(body, market, url);
+
+            // Saf HTML (JSON/NextData/JSON-LD yok) ve HTML extractor da boş döndüyse atla
+            if (!isPureJson && !hasEmbeddedJson && items.Count == 0)
+            {
+                logger.LogInformation("{Market}: HTML yanıt (JSON/HTML yok), atlanıyor. Query: {Q}", market.Name, target.Query);
+                return (null, false);
+            }
 
             if (items.Count == 0)
             {
@@ -224,6 +272,9 @@ public partial class LiveMarketPriceProvider(
 
             logger.LogInformation("{Market}: '{Title}' → {Price} TL (score:{Score})", market.Name, best.Title, best.Price, best.Score);
 
+            // Resim yoksa HTML'den og:image gibi meta etiketleri dene
+            var imgUrl = best.ImageUrl ?? (!isPureJson ? ExtractHtmlImage(body, market.BaseUrl) : null);
+
             return (new MarketPriceResult(
                 market.Id, market.Name,
                 best.Price,
@@ -232,7 +283,7 @@ public partial class LiveMarketPriceProvider(
                 IsLive: true,
                 ProductVarietyId: target.VarietyId,
                 MatchedTitle: best.Title,
-                ImageUrl: best.ImageUrl,
+                ImageUrl: imgUrl,
                 ConfidenceScore: best.Score), hasJson);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException or JsonException)
@@ -276,6 +327,26 @@ public partial class LiveMarketPriceProvider(
         foreach (Match ld in LdJsonRegex().Matches(body))
         {
             ParseJson(WebUtility.HtmlDecode(ld.Groups["json"].Value), items, market.BaseUrl, sourceUrl, dividePrice: false);
+        }
+
+        // 4. Fallback: platform-specific HTML extractors (JSON bulunamadıysa)
+        if (items.Count == 0)
+        {
+            var htmlCandidates =
+                NopCommercePriceExtractor.TryExtract(body, sourceUrl, market.BaseUrl)
+                ?? WooCommercePriceExtractor.TryExtract(body, sourceUrl, market.BaseUrl);
+
+            if (htmlCandidates is not null)
+                items.AddRange(htmlCandidates.Select(c =>
+                    new Candidate(c.Title, c.Price, c.Url, c.ImageUrl, c.InStock)));
+        }
+
+        // 5. Ticimax fallback (Taze Dükkan vb.): productDetailModel JS değişkeninden fiyat çıkar
+        if (items.Count == 0)
+        {
+            var tc = ExtractTicimax(body, sourceUrl, market.BaseUrl);
+            if (tc is not null)
+                items.Add(tc);
         }
 
         return items;
@@ -414,16 +485,37 @@ public partial class LiveMarketPriceProvider(
 
     // ── BEST CANDIDATE SELECTION ─────────────────────────────────────────────
 
+    private static readonly Dictionary<string, (decimal Min, decimal Max)> ProductPriceRange =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            // (min TL/kg, max TL/kg) — piyasa gerçekçi aralıkları
+            ["Mandalina"]       = (15m,  350m),
+            ["Limon"]           = (20m,  400m),
+            ["Lime"]            = (40m,  600m),   // Şok 19.95 gibi yanlış eşleşmeleri engeller
+            ["Finger Lime"]     = (100m, 2000m),
+            ["Portakal"]        = (15m,  350m),
+            ["Avokado"]         = (40m,  600m),
+            ["Nar"]             = (20m,  400m),
+            ["Ejder Meyvesi"]   = (50m,  800m),
+            ["Çarkıfelek"]      = (30m,  600m),
+            ["Mango"]           = (40m,  800m),
+            ["Domates"]         = (10m,  300m),
+            ["Limon Otu"]       = (8m,   200m),
+        };
+
     private static Candidate? PickBest(List<Candidate> candidates, Product product, SearchTarget target)
     {
         var prodNorm    = N(product.Name);
         var queryNorm   = N(target.Query);
         var varietyNorm = N(target.VarietyName);
-        var minPrice    = IsGrocery(product) ? 10m : 5m;
+
+        var (minPrice, maxPrice) = ProductPriceRange.TryGetValue(product.Name, out var r)
+            ? r
+            : (IsGrocery(product) ? 12m : 5m, 4000m);
 
         return candidates
             .Where(c => c.InStock)
-            .Where(c => c.Price >= minPrice && c.Price <= 5000)
+            .Where(c => c.Price >= minPrice && c.Price <= maxPrice)
             .Where(c => !IsJunk(c.Title))
             .Where(c => IsRelevant(c.Title, prodNorm, queryNorm))
             .Select(c =>
@@ -441,18 +533,29 @@ public partial class LiveMarketPriceProvider(
     {
         var hay = N(title);
         var s = 0;
-        if (ContainsWord(hay, prodNorm))                                              s += 40;
-        if (prodNorm != varietyNorm && ContainsWord(hay, varietyNorm))               s += 25;
-        if (prodNorm != queryNorm   && ContainsPhrase(hay, queryNorm))               s += 20;
-        if (Any(hay, "kg", "gr", "adet", "taze", "organik", "meyve", "sebze"))      s += 10;
-        if (Any(hay, "stok yok", "tukendi", "satis disi"))                           s -= 30;
+        if (ContainsTurkishWord(hay, prodNorm))                                       s += 40;
+        if (prodNorm != varietyNorm && ContainsTurkishWord(hay, varietyNorm))         s += 25;
+        if (prodNorm != queryNorm   && ContainsPhrase(hay, queryNorm))                s += 20;
+        if (Any(hay, "kg", "gr", "adet", "taze", "organik", "meyve", "sebze"))       s += 10;
+        if (Any(hay, "stok yok", "tukendi", "satis disi"))                            s -= 30;
         return Math.Clamp(s, 0, 100);
     }
 
     private static bool IsRelevant(string title, string prodNorm, string queryNorm)
     {
         var n = N(title);
-        return ContainsWord(n, prodNorm) || ContainsPhrase(n, queryNorm);
+        // Ürün adı: Türkçe ek toleranslı kelime eşleşmesi
+        if (ContainsTurkishWord(n, prodNorm)) return true;
+        // Sorgu: tam phrase
+        if (ContainsPhrase(n, queryNorm)) return true;
+        // Sorgu: çok kelimeli ise her kelime ayrı ayrı geçiyorsa da relevant say
+        // ("washington portakal" → "portakali" + "washington" ayrı ayrı)
+        if (queryNorm.Contains(' '))
+        {
+            var parts = queryNorm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.All(p => ContainsTurkishWord(n, p))) return true;
+        }
+        return false;
     }
 
     // Word-boundary match: "nar" must not be part of "narenciye"
@@ -465,6 +568,37 @@ public partial class LiveMarketPriceProvider(
             bool startOk = idx == 0         || !char.IsLetter(hay[idx - 1]);
             bool endOk   = idx + word.Length == hay.Length || !char.IsLetter(hay[idx + word.Length]);
             if (startOk && endOk) return true;
+            idx = hay.IndexOf(word, idx + 1, StringComparison.Ordinal);
+        }
+        return false;
+    }
+
+    // Türkçe ek toleranslı kelime eşleşmesi.
+    // Kök >= 4 karakter ise sonunda en fazla 5 harflik Türkçe ek kabul edilir.
+    // "portakal" → "portakali" ✓  |  "nar" → "narenciye" ✗ (kök < 4 → ContainsWord)
+    private static bool ContainsTurkishWord(string hay, string word)
+    {
+        if (string.IsNullOrEmpty(word)) return false;
+        if (word.Length < 4) return ContainsWord(hay, word);
+
+        var idx = hay.IndexOf(word, StringComparison.Ordinal);
+        while (idx >= 0)
+        {
+            bool startOk = idx == 0 || !char.IsLetter(hay[idx - 1]);
+            if (startOk)
+            {
+                int afterIdx = idx + word.Length;
+                // Tam kelime eşleşmesi
+                if (afterIdx >= hay.Length || !char.IsLetter(hay[afterIdx]))
+                    return true;
+                // Türkçe ek: ardından gelen en fazla 5 harf, sonra harf değil ya da string sonu
+                int suf = 0;
+                while (afterIdx + suf < hay.Length && char.IsLetter(hay[afterIdx + suf]) && suf < 5)
+                    suf++;
+                bool endOk = afterIdx + suf >= hay.Length || !char.IsLetter(hay[afterIdx + suf]);
+                if (endOk && suf is >= 1 and <= 5)
+                    return true;
+            }
             idx = hay.IndexOf(word, idx + 1, StringComparison.Ordinal);
         }
         return false;
@@ -596,6 +730,66 @@ public partial class LiveMarketPriceProvider(
         return Any(N(s), "stokta yok", "tukendi", "satis disi", "out of stock", "unavailable", "outofstock", "discontinued");
     }
 
+    // Ticimax platformu (Taze Dükkan vb.): productDetailModel JS değişkeninden ürün adı ve fiyat çıkar
+    private static Candidate? ExtractTicimax(string html, string sourceUrl, string? baseUrl)
+    {
+        if (!html.Contains("productDetailModel", StringComparison.Ordinal)) return null;
+
+        var nameM = TicimaxNameRegex().Match(html);
+        if (!nameM.Success) return null;
+        var name = WebUtility.HtmlDecode(nameM.Groups["n"].Value.Trim());
+
+        // Fiyat: önce indirimliFiyati (aktif kampanya), yoksa satisFiyati
+        decimal price = 0;
+        var indirimM = TicimaxIndirimliRegex().Match(html);
+        if (indirimM.Success
+            && decimal.TryParse(indirimM.Groups["p"].Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var indirim)
+            && indirim >= 5)
+            price = indirim;
+
+        if (price <= 0)
+        {
+            var satisM = TicimaxSatisRegex().Match(html);
+            if (satisM.Success && decimal.TryParse(satisM.Groups["p"].Value, NumberStyles.Number, CultureInfo.InvariantCulture, out var satis))
+                price = satis;
+        }
+
+        if (price <= 0 || price > 9999) return null;
+
+        // Stok: stokAdedi > 0 → stokta; bulunamazsa true (aktif sayfa = satışta varsayım)
+        var stockM = TicimaxStokRegex().Match(html);
+        bool inStock = !stockM.Success
+            || (int.TryParse(stockM.Groups["s"].Value, out var stok) && stok > 0);
+
+        return new Candidate(Clean(name), decimal.Round(price, 2), sourceUrl, ExtractHtmlImage(html, baseUrl), inStock);
+    }
+
+    // NopCommerce arama sonuç sayfasındaki ürün linklerini çıkar
+    private static IReadOnlyList<string> ExtractNopCommerceLinks(string html, string? baseUrl)
+    {
+        var seen  = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var links = new List<string>();
+        foreach (Match m in NopCommerceProductLinkRegex().Matches(html))
+        {
+            var url = Resolve(WebUtility.HtmlDecode(m.Groups["u"].Value), baseUrl);
+            if (url is not null && seen.Add(url))
+                links.Add(url);
+        }
+        return links;
+    }
+
+    // HTML sayfalarından og:image / itemprop meta etiketlerini çek
+    private static string? ExtractHtmlImage(string html, string? baseUrl)
+    {
+        var m = OgImageRegex().Match(html);
+        if (!m.Success) m = OgImageRegex2().Match(html);
+        if (!m.Success) m = ItemPropImageRegex().Match(html);
+        if (!m.Success) m = SchemaImageRegex().Match(html);
+        if (!m.Success) return null;
+        var raw = System.Net.WebUtility.HtmlDecode(m.Groups["url"].Value.Trim());
+        return Resolve(raw, baseUrl);
+    }
+
     private static string? Resolve(string? url, string? baseUrl)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
@@ -664,6 +858,36 @@ public partial class LiveMarketPriceProvider(
         @"<script[^>]+type=[""']application/ld\+json[""'][^>]*>(?<json>[\s\S]*?)</script>",
         RegexOptions.IgnoreCase)]
     private static partial Regex LdJsonRegex();
+
+    [GeneratedRegex(@"<meta[^>]+property=[""']og:image[""'][^>]+content=[""'](?<url>[^""']+)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex OgImageRegex();
+
+    [GeneratedRegex(@"<meta[^>]+content=[""'](?<url>[^""']+)[""'][^>]+property=[""']og:image[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex OgImageRegex2();
+
+    [GeneratedRegex(@"<(?:img|link)[^>]+itemprop=[""']image[""'][^>]+(?:src|href|content)=[""'](?<url>[^""']+)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex ItemPropImageRegex();
+
+    [GeneratedRegex(@"""image""\s*:\s*""(?<url>https?://[^""]+\.(jpg|jpeg|png|webp)[^""]*)""", RegexOptions.IgnoreCase)]
+    private static partial Regex SchemaImageRegex();
+
+    // Ticimax: productDetailModel alanları
+    [GeneratedRegex(@"""productName""\s*:\s*""(?<n>[^""]+)""")]
+    private static partial Regex TicimaxNameRegex();
+
+    [GeneratedRegex(@"""indirimliFiyati""\s*:\s*(?<p>\d+(?:\.\d+)?)")]
+    private static partial Regex TicimaxIndirimliRegex();
+
+    [GeneratedRegex(@"""satisFiyati""\s*:\s*(?<p>\d+(?:\.\d+)?)")]
+    private static partial Regex TicimaxSatisRegex();
+
+    [GeneratedRegex(@"""stokAdedi""\s*:\s*(?<s>\d+)")]
+    private static partial Regex TicimaxStokRegex();
+
+    // NopCommerce arama sayfası ürün linki: <h2 class="product-title"><a href="...">
+    [GeneratedRegex(@"<h2[^>]+class=[""']product-title[""'][^>]*>\s*<a[^>]+href=[""'](?<u>[^""']+)[""']",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex NopCommerceProductLinkRegex();
 
     // ── TYPES ─────────────────────────────────────────────────────────────────
 

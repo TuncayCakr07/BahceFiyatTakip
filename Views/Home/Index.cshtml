@@ -1,387 +1,685 @@
 @model BahceFiyatTakip.ViewModels.DashboardViewModel
 
 @{
-    ViewData["Title"]     = "Fiyatlar";
+    ViewData["Title"]     = "Piyasa Fiyat Tablosu";
     ViewData["BodyClass"] = "home-body";
+    var ic = System.Globalization.CultureInfo.InvariantCulture;
 
     string TimeAgo(DateTime? dt)
     {
-        if (dt is null) return "";
-        var diff = DateTime.Now - dt.Value.ToLocalTime();
-        if (diff.TotalMinutes < 1)  return "az önce";
-        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} dk önce";
-        if (diff.TotalHours < 24)   return $"{(int)diff.TotalHours} sa önce";
-        return $"{(int)diff.TotalDays} gün önce";
+        if (dt is null) return "—";
+        var d = DateTime.Now - dt.Value.ToLocalTime();
+        if (d.TotalMinutes < 1)  return "az önce";
+        if (d.TotalMinutes < 60) return $"{(int)d.TotalMinutes} dk önce";
+        if (d.TotalHours < 24)   return $"{(int)d.TotalHours} sa önce";
+        if (d.TotalDays < 7)     return $"{(int)d.TotalDays} gün önce";
+        return $"{(int)(d.TotalDays/7)} hafta önce";
+    }
+
+    string FreshClass(DateTime? dt)
+    {
+        if (!dt.HasValue) return "stale";
+        var h = (DateTime.UtcNow - dt.Value).TotalHours;
+        return h <= 24 ? "fresh" : h <= 168 ? "aging" : "stale";
     }
 
     string ProductColor(string name) => name.ToLowerInvariant() switch
     {
-        var n when n.Contains("mandalina")   => "#f97316",
-        var n when n.Contains("portakal")    => "#fb923c",
-        var n when n.Contains("limon otu")   => "#84cc16",
-        var n when n.Contains("limon")       => "#eab308",
-        var n when n.Contains("finger")      => "#10b981",
-        var n when n.Contains("lime")        => "#22c55e",
-        var n when n.Contains("avokado")     => "#16a34a",
-        var n when n.Contains("nar ekşisi")  => "#9f1239",
-        var n when n.Contains("nar suyu")    => "#be123c",
-        var n when n.Contains("nar")         => "#dc2626",
-        var n when n.Contains("ejder")       => "#e11d48",
-        var n when n.Contains("çarkıfelek")  => "#a855f7",
-        var n when n.Contains("mango")       => "#f59e0b",
-        var n when n.Contains("domates")     => "#ef4444",
-        var n when n.Contains("greyfurt")    => "#f472b6",
-        var n when n.Contains("kumkuat")     => "#f97316",
-        var n when n.Contains("reçel")       => "#d97706",
-        var n when n.Contains("marmelat")    => "#d97706",
-        var n when n.Contains("kurutulmuş")  => "#92400e",
-        var n when n.Contains("meyve suyu")  => "#0891b2",
-        _                                    => "#64748b",
+        var n when n.Contains("mandalina")  => "#f97316",
+        var n when n.Contains("portakal")   => "#ea580c",
+        var n when n.Contains("limon otu")  => "#84cc16",
+        var n when n.Contains("limon")      => "#ca8a04",
+        var n when n.Contains("finger")     => "#10b981",
+        var n when n.Contains("lime")       => "#16a34a",
+        var n when n.Contains("avokado")    => "#15803d",
+        var n when n.Contains("nar ekşisi") => "#9f1239",
+        var n when n.Contains("nar suyu")   => "#be123c",
+        var n when n.Contains("nar")        => "#dc2626",
+        var n when n.Contains("ejder")      => "#db2777",
+        var n when n.Contains("çarkıfelek") => "#9333ea",
+        var n when n.Contains("mango")      => "#d97706",
+        var n when n.Contains("domates")    => "#ef4444",
+        _                                   => "#64748b",
     };
 
-    string CategoryIcon(string cat) => cat switch
+    string CategoryColor(string cat) => cat switch
     {
-        "Narenciye" => "🍊",
-        "Tropikal"  => "🌴",
-        "Meyve"     => "🍇",
-        "Sebze"     => "🥬",
-        "Diğer"     => "🌿",
-        "İşlenmiş"  => "🫙",
-        _           => "📦",
+        "Narenciye" => "#f97316", "Tropikal" => "#16a34a",
+        "Meyve"     => "#dc2626", "Sebze"    => "#65a30d",
+        "İşlenmiş"  => "#d97706", "Diğer"    => "#9333ea",
+        _           => "#94a3b8",
     };
 
-    string ProductEmoji(string name) => name.ToLowerInvariant() switch
+    string ProdSlug(int id) => "prod-" + id;
+
+    string Sparkline(List<BahceFiyatTakip.ViewModels.SparkPoint> pts, string color, int w = 60, int h = 20)
     {
-        var n when n.Contains("mandalina")   => "🍊",
-        var n when n.Contains("portakal")    => "🍊",
-        var n when n.Contains("limon otu")   => "🌿",
-        var n when n.Contains("limon")       => "🍋",
-        var n when n.Contains("finger")      => "🫛",
-        var n when n.Contains("lime")        => "🍈",
-        var n when n.Contains("avokado")     => "🥑",
-        var n when n.Contains("nar ekşisi")  => "🍷",
-        var n when n.Contains("nar suyu")    => "🧃",
-        var n when n.Contains("nar")         => "🍎",
-        var n when n.Contains("ejder")       => "🐉",
-        var n when n.Contains("çarkıfelek")  => "💜",
-        var n when n.Contains("mango")       => "🥭",
-        var n when n.Contains("domates")     => "🍅",
-        var n when n.Contains("greyfurt")    => "🍋",
-        var n when n.Contains("kumkuat")     => "🟠",
-        var n when n.Contains("reçel")       => "🍯",
-        var n when n.Contains("marmelat")    => "🍯",
-        var n when n.Contains("kurutulmuş")  => "🍂",
-        var n when n.Contains("meyve suyu")  => "🧃",
-        _                                    => "🌱",
-    };
+        if (pts.Count < 2)
+            return $@"<svg width=""{w}"" height=""{h}"" viewBox=""0 0 {w} {h}""><line x1=""2"" y1=""{h/2}"" x2=""{w-2}"" y2=""{h/2}"" stroke=""#e2e8f0"" stroke-width=""1.5"" stroke-dasharray=""3,2""/></svg>";
+        var min = pts.Min(p => p.Price); var max = pts.Max(p => p.Price);
+        var range = max - min == 0 ? 1m : max - min;
+        var n = pts.Count;
+        var path = string.Join(" ", pts.Select((p, i) =>
+        {
+            var x = (double)i / (n - 1) * (w - 4) + 2;
+            var y = (h - 4) - (double)((p.Price - min) / range) * (h - 4) + 2;
+            return $"{(i == 0 ? "M" : "L")}{x.ToString("F1",ic)},{y.ToString("F1",ic)}";
+        }));
+        var lx = ((double)(n-1)/(n-1)*(w-4)+2).ToString("F1",ic);
+        var ly = ((h-4)-(double)((pts[^1].Price-min)/range)*(h-4)+2).ToString("F1",ic);
+        return $@"<svg width=""{w}"" height=""{h}"" viewBox=""0 0 {w} {h}"" class=""sparkline""><path d=""{path}"" fill=""none"" stroke=""{color}"" stroke-width=""1.6"" stroke-linecap=""round"" stroke-linejoin=""round""/><circle cx=""{lx}"" cy=""{ly}"" r=""2"" fill=""{color}""/></svg>";
+    }
 
-    string CatSlug(string cat) => cat switch
+    string ShortHarvest(string? h)
     {
-        "Narenciye" => "narenciye",
-        "Tropikal"  => "tropikal",
-        "Meyve"     => "meyve",
-        "Sebze"     => "sebze",
-        "Diğer"     => "diger",
-        "İşlenmiş"  => "islenmis",
-        _           => cat.ToLowerInvariant().Replace(" ", "-"),
-    };
+        if (string.IsNullOrWhiteSpace(h)) return "";
+        var map = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ocak"]="Oca.",["şubat"]="Şub.",["mart"]="Mar.",["nisan"]="Nis.",
+            ["mayıs"]="May.",["haziran"]="Haz.",["temmuz"]="Tem.",["ağustos"]="Ağu.",
+            ["eylül"]="Eyl.",["ekim"]="Eki.",["kasım"]="Kas.",["aralık"]="Ara.",
+        };
+        foreach (var kv in map)
+            h = h.Replace(kv.Key, kv.Value, StringComparison.OrdinalIgnoreCase);
+        return h.Length > 20 ? h[..20] + "…" : h;
+    }
 
-    var categoryOrder = new Dictionary<string, int>
+    var categoryOrder = new Dictionary<string,int>
     {
-        ["Narenciye"] = 0,
-        ["Tropikal"]  = 1,
-        ["Meyve"]     = 2,
-        ["Sebze"]     = 3,
-        ["Diğer"]     = 4,
-        ["İşlenmiş"]  = 5,
+        ["Narenciye"]=0,["Tropikal"]=1,["Meyve"]=2,["Sebze"]=3,["İşlenmiş"]=4,["Diğer"]=5
     };
 
-    var byCategory = Model.ProductSummaries
-        .GroupBy(s => s.Product.Category)
+    var byCategory = Model.ProductRows
+        .GroupBy(r => r.Product.Category)
         .OrderBy(g => categoryOrder.GetValueOrDefault(g.Key, 99))
         .ToList();
 
-    var dropProducts = Model.ProductSummaries
-        .Where(s => s.HasPriceDrop)
-        .OrderBy(s => s.TrendPct)
-        .ToList();
+    var hasHarvest   = Model.ProductRows.Any(r => r.Varieties.Any(v => !string.IsNullOrWhiteSpace(v.Variety.HarvestPeriod)));
+    var dropProducts = Model.ProductRows.Where(r => r.Varieties.Any(v => v.HasPriceDrop)).ToList();
 }
 
-@if (TempData["Message"] is string message)
+@if (TempData["Message"] is string msg)
 {
-    <div class="dash-alert">@message</div>
+    <div class="dash-alert">@msg</div>
 }
 
-@* ── Fiyatı düşen ürünler şeridi ──────────────────────── *@
+@* ═══ KPI STRIP ═══════════════════════════════════════════════════════════ *@
+<div class="kpi-strip">
+    <div class="kpi-item">
+        <div class="kpi-val">@Model.TotalProducts</div>
+        <div class="kpi-lbl">Ürün</div>
+    </div>
+    <div class="kpi-div"></div>
+    <div class="kpi-item">
+        <div class="kpi-val">@Model.VarietiesWithPrice</div>
+        <div class="kpi-lbl">Fiyatlı Çeşit</div>
+    </div>
+    <div class="kpi-div"></div>
+    <div class="kpi-item">
+        <div class="kpi-val">@Model.MatrixMarkets.Count</div>
+        <div class="kpi-lbl">Market</div>
+    </div>
+    <div class="kpi-div"></div>
+    <div class="kpi-item">
+        <div class="kpi-val">@Model.TotalPrices</div>
+        <div class="kpi-lbl">Güncel Fiyat</div>
+    </div>
+    @if (Model.DropCount > 0)
+    {
+        <div class="kpi-div"></div>
+        <div class="kpi-item">
+            <div class="kpi-val kpi-drop">↓ @Model.DropCount</div>
+            <div class="kpi-lbl">Düşüş</div>
+        </div>
+    }
+    @if (Model.RiseCount > 0)
+    {
+        <div class="kpi-div"></div>
+        <div class="kpi-item">
+            <div class="kpi-val kpi-rise">↑ @Model.RiseCount</div>
+            <div class="kpi-lbl">Yükseliş</div>
+        </div>
+    }
+    <div class="kpi-div kpi-div--push"></div>
+    @if (Model.LastUpdate.HasValue)
+    {
+        <div class="kpi-item kpi-item--end">
+            <div class="kpi-val kpi-val--sm">@TimeAgo(Model.LastUpdate)</div>
+            <div class="kpi-lbl">Son Güncelleme</div>
+        </div>
+    }
+</div>
+
+@* ═══ TOOLBAR ═════════════════════════════════════════════════════════════ *@
+<div class="toolbar">
+    <div class="search-wrap">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input id="productSearch" type="search" class="search-input" placeholder="Ürün veya çeşit ara…" autocomplete="off" />
+    </div>
+    <label class="filter-chip" title="Sadece fiyatı olan çeşitleri göster">
+        <input type="checkbox" id="onlyPriced" class="filter-chip-cb" />
+        <span>Fiyatlı çeşitler</span>
+    </label>
+    <div class="tb-gap"></div>
+    <a asp-controller="PriceChecks" asp-action="Index" class="btn-all-update">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        Tümünü Güncelle
+    </a>
+</div>
+
+@* ═══ DÜŞÜŞ ŞERİDİ ════════════════════════════════════════════════════════ *@
 @if (dropProducts.Count > 0)
 {
-    <div class="drop-strip-section" id="cat-dusen">
-        <div class="drop-strip-header">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5">
-                <path d="m7 7 10 10M17 7v10H7"/>
-            </svg>
-            <h2 class="drop-strip-title">Fiyatı Düşen Ürünler</h2>
-            <span class="drop-strip-count">@dropProducts.Count ürün</span>
-        </div>
-        <div class="drop-strip-scroll">
-            @foreach (var s in dropProducts)
+    <div class="drop-strip">
+        <span class="drop-strip-label">
+            <span class="pulse-dot"></span>
+            Fiyat Düşüşleri
+        </span>
+        <div class="drop-chips">
+            @foreach (var row in dropProducts)
             {
-                var color = ProductColor(s.Product.Name);
-                <a href="#cat-@CatSlug(s.Product.Category)" class="drop-mini-card">
-                    <div class="drop-mini-name" style="color:@color">@s.Product.Name</div>
-                    @if (s.Cheapest != null)
+                var dcolor   = ProductColor(row.Product.Name);
+                var bestDrop = row.Varieties.Where(v => v.HasPriceDrop).MinBy(v => v.TrendPct);
+                <button class="drop-chip" onclick="scrollToProd(@row.Product.Id)">
+                    <span class="drop-chip-dot" style="background:@dcolor"></span>
+                    <span class="drop-chip-name">@row.Product.Name</span>
+                    @if (bestDrop != null)
                     {
-                        <div class="drop-mini-price">@s.Cheapest.PricePerKg.ToString("N2") <span>₺</span></div>
-                        <div class="drop-mini-pct">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                <path d="m7 7 10 10M17 7v10H7"/>
-                            </svg>
-                            %@Math.Abs(s.TrendPct!.Value).ToString("N1") düştü
-                        </div>
+                        <span class="drop-chip-variety">@bestDrop.Variety.Name</span>
+                        <span class="drop-chip-pct">↓@Math.Abs(bestDrop.TrendPct!.Value).ToString("N1")%</span>
                     }
-                </a>
+                    @if (row.OverallCheapest != null)
+                    {
+                        <span class="drop-chip-price">@row.OverallCheapest.PricePerKg.ToString("N2") ₺</span>
+                    }
+                </button>
             }
         </div>
     </div>
 }
 
-@* ── Kategori bölümleri ────────────────────────────────── *@
+@* ═══ ÜRÜN × ÇEŞİT MATRİSİ ═══════════════════════════════════════════════ *@
 @foreach (var group in byCategory)
 {
-    var catId = "cat-" + CatSlug(group.Key);
-    <section class="cat-section" id="@catId">
-        <div class="cat-section-header">
-            <span class="cat-section-icon">@CategoryIcon(group.Key)</span>
-            <h2 class="cat-section-name">@group.Key</h2>
-            <span class="cat-section-count">@group.Count()</span>
+    var catColor = CategoryColor(group.Key);
+    <div class="category-band" style="--cat-color:@catColor">
+        <div class="category-band-head">
+            <span class="cat-band-bar"></span>
+            <span class="cat-band-name">@group.Key</span>
+            <span class="cat-band-count">@group.Count() ürün</span>
+            @if (group.Any(r => r.Varieties.Any(v => v.HasPriceDrop)))
+            {
+                <span class="cat-band-drops">↓ @group.Sum(r => r.Varieties.Count(v => v.HasPriceDrop)) düşüş</span>
+            }
         </div>
 
-        <div class="pcard-grid">
-            @foreach (var summary in group.OrderBy(s => s.Cheapest?.PricePerKg))
-            {
-                var best  = summary.Cheapest!;
-                var color = ProductColor(summary.Product.Name);
+        @foreach (var row in group)
+        {
+            var prodColor  = ProductColor(row.Product.Name);
+            var prodSlug   = ProdSlug(row.Product.Id);
+            var cheapest   = row.OverallCheapest;
+            var freshCls   = FreshClass(row.LastChecked);
+            var hasNoPrice = !row.HasAnyPrice;
+            var hasLinks   = row.ProductMarkets.Count > 0;
+            var trendPct   = row.BestTrendPct;
 
-                <div class="pcard" style="--accent:@color">
-                    <div class="pcard-head">
-                        <div class="pcard-ident">
-                            <div class="pcard-avatar">@ProductEmoji(summary.Product.Name)</div>
-                            <div>
-                                <div class="pcard-name">@summary.Product.Name</div>
-                                @if (summary.LastChecked.HasValue)
+            <div class="product-section @(hasNoPrice ? "ps-no-data" : "")"
+                 id="@prodSlug"
+                 data-name="@row.Product.Name.ToLower()"
+                 data-prodid="@row.Product.Id"
+                 style="--pc:@prodColor">
+
+                @* ── Ürün başlığı (tıklanabilir, collapse) ── *@
+                <div class="ps-head" onclick="togglePS(this)">
+                    <div class="ps-head-left">
+                        <span class="ps-chevron">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                        @if (!string.IsNullOrWhiteSpace(row.BestImageUrl))
+                        {
+                            <img src="@row.BestImageUrl" alt="" class="ps-img" loading="lazy" onerror="this.style.display='none'" />
+                        }
+                        else
+                        {
+                            <span class="ps-color-dot"></span>
+                        }
+                        <div>
+                            <div class="ps-name">@row.Product.Name</div>
+                            <div class="ps-sub">
+                                <span class="freshness-dot freshness-@freshCls"></span>
+                                @if (hasNoPrice)
                                 {
-                                    <div class="pcard-time">@TimeAgo(summary.LastChecked)</div>
+                                    <span class="ps-no-data-lbl ps-fetch-status">Fiyat çekiliyor…</span>
+                                }
+                                else
+                                {
+                                    <span>@row.VarietiesWithPrice/@row.Varieties.Count çeşit</span>
+                                    <span class="ps-sub-sep">·</span>
+                                    <span>@row.TotalPriceCount fiyat</span>
+                                    <span class="ps-sub-sep">·</span>
+                                    <span>@TimeAgo(row.LastChecked)</span>
                                 }
                             </div>
                         </div>
-                        <div class="pcard-actions">
-                            @if (summary.HasPriceDrop)
-                            {
-                                <span class="trend-badge trend-drop">↓ %@Math.Abs(summary.TrendPct!.Value).ToString("N1")</span>
-                            }
-                            else if (summary.HasPriceRise)
-                            {
-                                <span class="trend-badge trend-rise">↑ %@summary.TrendPct!.Value.ToString("N1")</span>
-                            }
-                            <form asp-controller="PriceChecks" asp-action="Check" method="post" style="display:inline">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="productId" value="@summary.Product.Id" />
-                                <button type="submit" class="btn-upd" onclick="startLoading(this)">
-                                    <svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none">
-                                        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                                    </svg>
-                                    <span class="upd-text">Güncelle</span>
-                                </button>
-                            </form>
-                        </div>
                     </div>
-
-                    <div class="pcard-featured">
-                        <div class="featured-media">
-                            @if (!string.IsNullOrWhiteSpace(best.ImageUrl))
-                            {
-                                <img src="@best.ImageUrl" alt="" class="featured-img" loading="lazy" />
-                            }
-                            else
-                            {
-                                <div class="featured-placeholder">@ProductEmoji(summary.Product.Name)</div>
-                            }
-                        </div>
-                        <div class="featured-info">
-                            <div class="featured-market">@best.Market.Name</div>
-                            @if (!string.IsNullOrWhiteSpace(best.MatchedTitle))
-                            {
-                                <div class="featured-title">@best.MatchedTitle</div>
-                            }
-                            <div class="featured-price-row">
-                                <div class="featured-price">@best.PricePerKg.ToString("N2") <span>₺</span></div>
-                                <div class="featured-unit">/ @summary.Product.Unit</div>
-                            </div>
-                        </div>
-                        @if (!string.IsNullOrWhiteSpace(best.SourceUrl))
+                    <div class="ps-head-right" onclick="event.stopPropagation()">
+                        @if (!hasNoPrice && row.ProductSparkline.Count >= 2)
                         {
-                            <a href="@best.SourceUrl" target="_blank" class="best-link" title="Ürüne git">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                    <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-                                </svg>
-                            </a>
+                            <span class="ps-spark">@Html.Raw(Sparkline(row.ProductSparkline, prodColor, 80, 24))</span>
                         }
+                        @if (cheapest != null)
+                        {
+                            <div class="ps-best">
+                                <span class="ps-best-price">@cheapest.PricePerKg.ToString("N2")<em> ₺</em></span>
+                                <span class="ps-best-market">@cheapest.Market.Name</span>
+                            </div>
+                        }
+                        @if (trendPct.HasValue)
+                        {
+                            <span class="trend-badge @(trendPct < -2m ? "trend-drop" : trendPct > 2m ? "trend-rise" : "trend-flat")">
+                                @(trendPct < 0 ? "↓" : "↑")@Math.Abs(trendPct.Value).ToString("N1")%
+                            </span>
+                        }
+                        <form asp-controller="PriceChecks" asp-action="Check" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="productId" value="@row.Product.Id" />
+                            <button type="submit" class="btn-upd-ps" onclick="startLoading(this)">
+                                <svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none;width:11px;height:11px"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                <span class="upd-lbl">Güncelle</span>
+                            </button>
+                        </form>
                     </div>
-
-                    @if (summary.Prices.Count > 1)
-                    {
-                        <div class="price-rows">
-                            @foreach (var rec in summary.Prices.Skip(1))
-                            {
-                                <div class="price-row">
-                                    <span class="pr-market">@rec.Market.Name</span>
-                                    <span class="pr-title">@(rec.MatchedTitle ?? "")</span>
-                                    <span class="pr-price">@rec.PricePerKg.ToString("N2") ₺</span>
-                                    @if (!string.IsNullOrWhiteSpace(rec.SourceUrl))
-                                    {
-                                        <a href="@rec.SourceUrl" target="_blank" class="pr-link">↗</a>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
                 </div>
-            }
-        </div>
-    </section>
+
+                @* ── Çeşit matris tablosu ── *@
+                @if (!hasNoPrice || hasLinks)
+                {
+                    <div class="ps-body">
+                        <div class="variety-table-wrap">
+                            <table class="variety-table">
+                                <thead>
+                                    <tr>
+                                        <th class="vth-name">Çeşit</th>
+                                        <th class="vth-spark">14 Gün</th>
+                                        @if (hasHarvest)
+                                        {
+                                            <th class="vth-harvest">Hasat</th>
+                                        }
+                                        @foreach (var mkt in row.ProductMarkets)
+                                        {
+                                            <th class="vth-mkt">@mkt.Name</th>
+                                        }
+                                        <th class="vth-best">En Ucuz</th>
+                                        <th class="vth-trend">Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        var sortedVarieties = row.Varieties
+                                            .OrderBy(v => v.HasAnyPrice ? 0 : 1)
+                                            .ThenBy(v => v.Cheapest?.PricePerKg ?? 9999m);
+                                    }
+                                    @foreach (var vrow in sortedVarieties)
+                                    {
+                                        var vcheap  = vrow.Cheapest;
+                                        var vhasdat = vrow.HasAnyPrice;
+                                        var hasNotes = !string.IsNullOrWhiteSpace(vrow.Variety.Notes);
+                                        var harvest  = ShortHarvest(vrow.Variety.HarvestPeriod);
+
+                                        <tr class="variety-row @(vhasdat ? "" : "vr-empty")"
+                                            data-variety="@vrow.Variety.Name.ToLower()">
+
+                                            <td class="vtd-name">
+                                                <div class="vt-name-inner" @(hasNotes ? $@"title=""{vrow.Variety.Notes}""" : "")>
+                                                    <span class="vt-var-dot" style="background:@prodColor"></span>
+                                                    <span class="vt-var-name @(hasNotes ? "vt-has-notes" : "")">@vrow.Variety.Name</span>
+                                                    @if (hasNotes)
+                                                    {
+                                                        <span class="vt-note-icon" title="@vrow.Variety.Notes">i</span>
+                                                    }
+                                                </div>
+                                            </td>
+
+                                            <td class="vtd-spark">
+                                                @Html.Raw(Sparkline(vrow.SparklinePoints, vhasdat ? prodColor : "#e2e8f0"))
+                                            </td>
+
+                                            @if (hasHarvest)
+                                            {
+                                                <td class="vtd-harvest">
+                                                    @if (!string.IsNullOrWhiteSpace(harvest))
+                                                    {
+                                                        <span class="harvest-tag">@harvest</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="cell-null">—</span>
+                                                    }
+                                                </td>
+                                            }
+
+                                            @foreach (var mkt in row.ProductMarkets)
+                                            {
+                                                var rec       = vrow.MarketPrices.GetValueOrDefault(mkt.Id);
+                                                var isLinked  = vrow.LinkedMarketIds.Contains(mkt.Id);
+                                                var isBest    = rec != null && vcheap != null && rec.Id == vcheap.Id;
+                                                var isToday   = rec != null && rec.CheckedAt.ToLocalTime().Date == DateTime.Today;
+                                                var lowConf   = rec != null && rec.ConfidenceScore > 0 && rec.ConfidenceScore < 65;
+                                                var directUrl = vrow.MarketDirectUrls.GetValueOrDefault(mkt.Id, "");
+
+                                                string cellCss = isBest ? "cell-best"
+                                                               : (rec != null && isToday) ? "cell-fresh"
+                                                               : rec != null ? "cell-ok"
+                                                               : isLinked ? "cell-pending"
+                                                               : "cell-miss";
+
+                                                <td class="vtd-mkt @cellCss">
+                                                    @if (rec != null)
+                                                    {
+                                                        var cellUrl = !string.IsNullOrEmpty(rec.SourceUrl) ? rec.SourceUrl : directUrl;
+                                                        <a href="@cellUrl" target="_blank" rel="noopener"
+                                                           class="cell-link" title="@rec.MatchedTitle">
+                                                            @rec.PricePerKg.ToString("N2")
+                                                            <span class="cell-unit">₺</span>
+                                                        </a>
+                                                        @if (lowConf)
+                                                        {
+                                                            <span class="cell-lowconf" title="Düşük güven skoru (@rec.ConfidenceScore)">~</span>
+                                                        }
+                                                    }
+                                                    else if (isLinked)
+                                                    {
+                                                        @if (!string.IsNullOrEmpty(directUrl))
+                                                        {
+                                                            <a href="@directUrl" target="_blank" rel="noopener" class="cell-link">
+                                                                <span class="cell-pending-text">Henüz çekilmedi</span>
+                                                            </a>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="cell-pending-text">Henüz çekilmedi</span>
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="cell-null">—</span>
+                                                    }
+                                                </td>
+                                            }
+
+                                            <td class="vtd-best">
+                                                @if (vcheap != null)
+                                                {
+                                                    <div class="vt-best-price">@vcheap.PricePerKg.ToString("N2")<span> ₺</span></div>
+                                                    <div class="vt-best-mkt">@vcheap.Market.Name</div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="cell-null">yok</span>
+                                                }
+                                            </td>
+
+                                            <td class="vtd-trend">
+                                                @if (vrow.HasPriceDrop)
+                                                {
+                                                    <span class="trend-badge trend-drop">↓@Math.Abs(vrow.TrendPct!.Value).ToString("N1")%</span>
+                                                }
+                                                else if (vrow.HasPriceRise)
+                                                {
+                                                    <span class="trend-badge trend-rise">↑@vrow.TrendPct!.Value.ToString("N1")%</span>
+                                                }
+                                                else if (vrow.TrendPct.HasValue)
+                                                {
+                                                    <span class="trend-stable">stabil</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="cell-null">—</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
 }
 
-@* ── Sidebar içeriği ─────────────────────────────────────── *@
 @section SidebarContent {
     <div class="sidebar-head">
-        <span class="sidebar-head-title">Filtrele</span>
-        <button class="sidebar-close" id="sidebarClose" title="Kapat">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
+        <span class="sidebar-head-title">Ürünler</span>
+        <button class="sidebar-close" id="sidebarClose">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
         </button>
     </div>
-
     <nav class="sidebar-nav">
         @if (dropProducts.Count > 0)
         {
-            <a href="#cat-dusen" class="sidebar-link sidebar-drop-link" data-target="cat-dusen">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="m7 7 10 10M17 7v10H7"/>
-                </svg>
-                Fiyatı Düşenler
-                <span class="sidebar-link-count">@dropProducts.Count</span>
-            </a>
-            <div class="sidebar-divider"></div>
+            <div class="sb-cat-label" style="color:#dc2626">
+                <span class="sb-cat-dot" style="background:#dc2626"></span>
+                Fiyat Düşüşleri
+            </div>
+            @foreach (var row in dropProducts)
+            {
+                <a href="#@ProdSlug(row.Product.Id)" class="sidebar-link sb-drop-link" data-target="@ProdSlug(row.Product.Id)">
+                    <span class="sb-prod-name">@row.Product.Name</span>
+                    @if (row.BestTrendPct.HasValue)
+                    {
+                        <span class="sb-drop-badge">↓@Math.Abs(row.BestTrendPct.Value).ToString("N0")%</span>
+                    }
+                </a>
+            }
+            <div class="sb-divider"></div>
         }
-
-        <div class="sidebar-label">Kategoriler</div>
         @foreach (var group in byCategory)
         {
-            var slug = CatSlug(group.Key);
-            <a href="#cat-@slug" class="sidebar-link" data-target="cat-@slug">
-                <span style="font-size:1rem;line-height:1;flex-shrink:0">@CategoryIcon(group.Key)</span>
+            var catColor = CategoryColor(group.Key);
+            <div class="sb-cat-label">
+                <span class="sb-cat-dot" style="background:@catColor"></span>
                 @group.Key
-                <span class="sidebar-link-count">@group.Count()</span>
-            </a>
+            </div>
+            @foreach (var row in group)
+            {
+                var color = ProductColor(row.Product.Name);
+                <a href="#@ProdSlug(row.Product.Id)" class="sidebar-link" data-target="@ProdSlug(row.Product.Id)">
+                    <span class="sb-prod-dot" style="background:@color"></span>
+                    <span class="sb-prod-name">@row.Product.Name</span>
+                    <span class="sb-prod-stat">
+                        @if (row.HasAnyPrice)
+                        {
+                            <span class="sb-variety-count">@row.VarietiesWithPrice</span>
+                        }
+                        else
+                        {
+                            <span class="sb-no-price">○</span>
+                        }
+                    </span>
+                </a>
+            }
         }
     </nav>
-
     <div class="sidebar-footer">
-        <div class="sidebar-stats-row">
-            <div class="sidebar-stat">
-                <span class="sidebar-stat-val">@Model.ProductSummaries.Count</span>
-                <span class="sidebar-stat-lbl">ürün</span>
-            </div>
-            <div class="sidebar-stat">
-                <span class="sidebar-stat-val">@Model.MarketCount</span>
-                <span class="sidebar-stat-lbl">market</span>
-            </div>
-            <div class="sidebar-stat">
-                <span class="sidebar-stat-val">@Model.ProductSummaries.Sum(s => s.Prices.Count)</span>
-                <span class="sidebar-stat-lbl">fiyat</span>
-            </div>
+        <div class="sb-stats-row">
+            <div class="sb-stat"><span class="sb-stat-v">@Model.TotalProducts</span><span class="sb-stat-l">ürün</span></div>
+            <div class="sb-stat"><span class="sb-stat-v">@Model.VarietiesWithPrice</span><span class="sb-stat-l">çeşit</span></div>
+            <div class="sb-stat"><span class="sb-stat-v">@Model.TotalPrices</span><span class="sb-stat-l">fiyat</span></div>
         </div>
-        <a asp-controller="PriceChecks" asp-action="Index" class="sidebar-btn">Fiyat Güncelle →</a>
+        <a asp-controller="PriceChecks" asp-action="Index" class="sb-all-btn">Tümünü Güncelle →</a>
     </div>
 }
 
 @section Scripts {
 <script>
-(function () {
-    var sidebar   = document.getElementById('sidebar');
-    var overlay   = document.getElementById('sidebarOverlay');
-    var toggleBtn = document.getElementById('sidebarToggle');
-    var closeBtn  = document.getElementById('sidebarClose');
-    var body      = document.body;
-    var KEY       = 'bhf_sidebar';
+(function(){
+    /* ── Sidebar ─────────────────────────────────────────── */
+    var sb = document.getElementById('sidebar');
+    var ov = document.getElementById('sidebarOverlay');
+    var tg = document.getElementById('sidebarToggle');
+    var cl = document.getElementById('sidebarClose');
+    var SK = 'bhf_sb4';
+    var desk = function(){ return window.innerWidth >= 900; };
+    var openSB  = function(){ sb.classList.add('sidebar-open'); if(desk()) document.body.classList.add('home-sidebar-open'); else ov.classList.add('visible'); localStorage.setItem(SK,'1'); };
+    var closeSB = function(){ sb.classList.remove('sidebar-open'); document.body.classList.remove('home-sidebar-open'); ov.classList.remove('visible'); localStorage.setItem(SK,'0'); };
 
-    function isDesktop() { return window.innerWidth >= 900; }
+    (localStorage.getItem(SK) === null ? desk() : localStorage.getItem(SK) === '1') ? openSB() : null;
+    if(tg) tg.addEventListener('click', function(){ sb.classList.contains('sidebar-open') ? closeSB() : openSB(); });
+    if(cl) cl.addEventListener('click', closeSB);
+    if(ov) ov.addEventListener('click', closeSB);
 
-    function openSidebar() {
-        sidebar.classList.add('sidebar-open');
-        if (isDesktop()) body.classList.add('home-sidebar-open');
-        else             overlay.classList.add('visible');
-        localStorage.setItem(KEY, '1');
-    }
-
-    function closeSidebar() {
-        sidebar.classList.remove('sidebar-open');
-        body.classList.remove('home-sidebar-open');
-        overlay.classList.remove('visible');
-        localStorage.setItem(KEY, '0');
-    }
-
-    function toggle() {
-        sidebar.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
-    }
-
-    // Restore state (default: open on desktop)
-    var saved = localStorage.getItem(KEY);
-    if (saved === null ? isDesktop() : saved === '1') openSidebar();
-
-    if (toggleBtn) toggleBtn.addEventListener('click', toggle);
-    if (closeBtn)  closeBtn.addEventListener('click', closeSidebar);
-    if (overlay)   overlay.addEventListener('click', closeSidebar);
-
-    // Smooth scroll for sidebar links
-    document.querySelectorAll('.sidebar-link[data-target]').forEach(function(link) {
-        link.addEventListener('click', function(e) {
+    document.querySelectorAll('.sidebar-link[data-target]').forEach(function(l){
+        l.addEventListener('click', function(e){
             e.preventDefault();
-            var el = document.getElementById(link.dataset.target);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                if (!isDesktop()) closeSidebar();
-            }
+            var el = document.getElementById(l.dataset.target);
+            if(el){ el.classList.remove('ps-collapsed'); el.scrollIntoView({behavior:'smooth',block:'start'}); }
+            if(!desk()) closeSB();
         });
     });
 
-    // Highlight active category while scrolling
-    var sections = document.querySelectorAll('.cat-section, .drop-strip-section');
-    var links    = document.querySelectorAll('.sidebar-link[data-target]');
-
-    if ('IntersectionObserver' in window && sections.length > 0) {
-        var obs = new IntersectionObserver(function(entries) {
-            entries.forEach(function(entry) {
-                if (entry.isIntersecting) {
-                    var id = entry.target.id;
-                    links.forEach(function(l) {
-                        l.classList.toggle('active', l.dataset.target === id);
-                    });
-                }
-            });
-        }, { rootMargin: '-15% 0px -75% 0px' });
-
-        sections.forEach(function(s) { obs.observe(s); });
+    if('IntersectionObserver' in window){
+        var links = document.querySelectorAll('.sidebar-link[data-target]');
+        var obs = new IntersectionObserver(function(en){
+            en.forEach(function(e){ if(e.isIntersecting) links.forEach(function(l){ l.classList.toggle('active',l.dataset.target===e.target.id); }); });
+        }, {rootMargin:'-5% 0px -80% 0px'});
+        document.querySelectorAll('.product-section').forEach(function(s){ obs.observe(s); });
     }
+
+    /* ── Collapse ─────────────────────────────────────────── */
+    window.togglePS = function(head){
+        head.closest('.product-section').classList.toggle('ps-collapsed');
+    };
+
+    window.scrollToProd = function(id){
+        var el = document.getElementById('prod-'+id);
+        if(!el) return;
+        el.classList.remove('ps-collapsed');
+        el.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+
+    /* ── Search + filter ─────────────────────────────────── */
+    var si = document.getElementById('productSearch');
+    var op = document.getElementById('onlyPriced');
+
+    function applyFilters(){
+        var q = si.value.toLowerCase().trim();
+        var priced = op.checked;
+
+        document.querySelectorAll('.product-section').forEach(function(ps){
+            var pname  = ps.dataset.name || '';
+            var nodata = ps.classList.contains('ps-no-data');
+
+            if(priced && nodata){ ps.style.display='none'; return; }
+
+            var rows = ps.querySelectorAll('.variety-row');
+            var anyVis = false;
+            rows.forEach(function(r){
+                var vname  = r.dataset.variety || '';
+                var empty  = r.classList.contains('vr-empty');
+                var match  = !q || pname.includes(q) || vname.includes(q);
+                var show   = match && (!priced || !empty);
+                r.style.display = show ? '' : 'none';
+                if(show) anyVis = true;
+            });
+
+            var pmatch = !q || pname.includes(q);
+            ps.style.display = (pmatch || anyVis) ? '' : 'none';
+        });
+
+        document.querySelectorAll('.category-band').forEach(function(b){
+            var vis = Array.from(b.querySelectorAll('.product-section')).some(function(p){ return p.style.display!=='none'; });
+            b.style.display = vis ? '' : 'none';
+        });
+    }
+
+    si.addEventListener('input', applyFilters);
+    op.addEventListener('change', applyFilters);
 })();
 
-function startLoading(btn) {
+function startLoading(btn){
     btn.disabled = true;
-    btn.querySelector('.spin-icon').style.display = 'block';
-    btn.querySelector('.upd-text').textContent = 'Yükleniyor…';
+    var spin = btn.querySelector('.spin-icon');
+    var lbl  = btn.querySelector('.upd-lbl');
+    if(spin) spin.style.display='inline-block';
+    if(lbl)  lbl.textContent='…';
 }
+
+/* ═══════════════════════════════════════════════════════
+   AUTO-FETCH: Fiyatsız ürünleri sayfa açılınca çek
+   ═══════════════════════════════════════════════════════ */
+(function(){
+    var noDataSections = Array.from(document.querySelectorAll('.ps-no-data[data-prodid]'));
+    if(noDataSections.length === 0) return;
+
+    // Token al (herhangi bir formdan)
+    var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+    if(!tokenEl) return;
+    var token = tokenEl.value;
+
+    // Banner oluştur
+    var banner = document.createElement('div');
+    banner.id = 'af-banner';
+    banner.innerHTML = '<div class="af-inner"><span class="af-spin"></span><span id="af-text">Fiyatlar yükleniyor…</span><span id="af-count" class="af-count"></span></div>';
+    document.querySelector('.kpi-strip').insertAdjacentElement('afterend', banner);
+
+    var total = noDataSections.length;
+    var done  = 0;
+
+    function updateBanner(){
+        document.getElementById('af-count').textContent = done + ' / ' + total + ' tamamlandı';
+    }
+    updateBanner();
+
+    // 3'erli gruplarda çek (paralel ama kontrollü)
+    function chunkArray(arr, size){
+        var chunks = [];
+        for(var i=0;i<arr.length;i+=size) chunks.push(arr.slice(i,i+size));
+        return chunks;
+    }
+
+    async function fetchOne(section){
+        var id = section.dataset.prodid;
+        var statusEl = section.querySelector('.ps-fetch-status');
+        if(statusEl) statusEl.textContent = 'Çekiliyor…';
+
+        var fd = new FormData();
+        fd.append('productId', id);
+        fd.append('__RequestVerificationToken', token);
+
+        try {
+            var resp = await fetch('/PriceChecks/CheckApi', {method:'POST', body:fd});
+            var data = await resp.json();
+            done++;
+            updateBanner();
+            if(statusEl){
+                statusEl.textContent = data.ok && data.count > 0
+                    ? '✓ ' + data.count + ' market'
+                    : '— Fiyat bulunamadı';
+                statusEl.style.color = data.ok && data.count > 0 ? '#059669' : '#9ca3af';
+            }
+        } catch(e) {
+            done++;
+            updateBanner();
+            if(statusEl){ statusEl.textContent = 'Hata'; statusEl.style.color='#ef4444'; }
+        }
+    }
+
+    async function runAll(){
+        var chunks = chunkArray(noDataSections, 3);
+        for(var chunk of chunks){
+            await Promise.all(chunk.map(fetchOne));
+        }
+        document.getElementById('af-text').textContent = 'Tamamlandı! Sayfa yenileniyor…';
+        setTimeout(function(){ window.location.reload(); }, 1200);
+    }
+
+    runAll();
+})();
 </script>
 }

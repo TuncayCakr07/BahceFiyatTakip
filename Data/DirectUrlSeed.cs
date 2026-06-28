@@ -33,7 +33,7 @@ internal static class DirectUrlSeed
         ["anamurbahcesi.com"]           = "Anamur Bahçesi",
         ["sariyermarket.com"]           = "Sarıyer Market",
         ["gurmar.com.tr"]               = "Gürmar",
-        ["hediyelikbahcem.com"]         = "Hediyelikbahcem",
+        ["hediyelikbahcem.com"]         = "Hediyelikbahçem",
         ["turkuazkoy.com"]              = "Turkuazköy",
         ["solmeraciftligi.com"]         = "Solmera Çiftliği",
         ["soyleyerinden.com"]           = "Söyle Yerinden",

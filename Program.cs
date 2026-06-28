@@ -1,5 +1,6 @@
 ﻿using BahceFiyatTakip.Data;
 using BahceFiyatTakip.Services;
+using BahceFiyatTakip.Services.ExcelSeed;
 using BahceFiyatTakip.Services.MarketPrices;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,6 +44,25 @@ using (var scope = app.Services.CreateScope())
     await dbContext.Database.MigrateAsync();
     await MarketCatalogSeeder.EnsureSeededAsync(dbContext);
     await DirectUrlSeed.EnsureSeededAsync(dbContext);
+
+    // Excel seed: sadece hiç Excel link'i yoksa çalış (DirectUrl="" olan link yoksa)
+    bool excelAlreadySeeded = await dbContext.ProductMarketLinks.AnyAsync(l => l.DirectUrl == "");
+    if (!excelAlreadySeeded)
+    {
+        const string excelPath = @"C:\Users\Tuncay Çakır\Desktop\Yeni Fiyat Araştırması.xlsx";
+        if (File.Exists(excelPath))
+        {
+            var seeder = new ExcelSeedService(dbContext, app.Services.GetRequiredService<ILogger<ExcelSeedService>>());
+            var result = await seeder.SeedAsync(excelPath);
+            app.Logger.LogInformation(
+                "Excel seed tamamlandı → +{P} ürün, +{V} çeşit, +{M} market, +{L} link, +{A} alias",
+                result.Products, result.Varieties, result.Markets, result.Links, result.Aliases);
+        }
+        else
+        {
+            app.Logger.LogWarning("Excel dosyası bulunamadı: {Path}", excelPath);
+        }
+    }
 }
 
 var pageFetcher = app.Services.GetRequiredService<PlaywrightPageFetcher>();

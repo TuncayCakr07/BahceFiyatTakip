@@ -53,9 +53,29 @@ public async Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(
             return [];
         }
 
+        // Bugün aynı (ProductVarietyId, MarketId) için kayıt varsa skip
+        var todayLocal = DateTime.Today;
+        var existingTodayKeys = await dbContext.PriceRecords
+            .Where(r => r.ProductId == productId && r.CheckedAt >= todayLocal)
+            .Select(r => new { r.ProductVarietyId, r.MarketId })
+            .ToListAsync(cancellationToken);
+
+        var todayKeySet = existingTodayKeys
+            .Select(k => (k.ProductVarietyId, k.MarketId))
+            .ToHashSet();
+
+        var newResults = reliableLiveResults
+            .Where(r => !todayKeySet.Contains((r.ProductVarietyId, r.MarketId)))
+            .ToList();
+
+        if (newResults.Count == 0)
+        {
+            return [];
+        }
+
         var checkedAt = DateTime.Now;
 
-        var records = reliableLiveResults.Select(result => new PriceRecord
+        var records = newResults.Select(result => new PriceRecord
         {
             ProductId = product.Id,
             ProductVarietyId = result.ProductVarietyId,
@@ -71,6 +91,18 @@ public async Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(
         }).ToList();
 
         dbContext.PriceRecords.AddRange(records);
+
+        // İlk başarılı scrape'de Product.ImageUrl'u doldur (kalıcı fallback)
+        if (string.IsNullOrWhiteSpace(product.ImageUrl))
+        {
+            var firstImg = records.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.ImageUrl))?.ImageUrl;
+            if (firstImg is not null)
+            {
+                product.ImageUrl = firstImg;
+                dbContext.Products.Update(product);
+            }
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return records;
@@ -84,25 +116,37 @@ public async Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(
 
         foreach (var item in catalog)
         {
-            var existing = existingMarkets.FirstOrDefault(market =>
-                string.Equals(market.Name, item.Name, StringComparison.OrdinalIgnoreCase));
+            // Önce tam eşleşme (büyük/küçük harf farkı yok)
+            var existing = existingMarkets.FirstOrDefault(m =>
+                string.Equals(m.Name, item.Name, StringComparison.OrdinalIgnoreCase));
+
+            // Boşluk normalleştirmesiyle eşleşme: "Hediyelik Bahçem" == "Hediyelikbahçem" duplikasyonunu önler
+            if (existing is null)
+            {
+                var norm = item.Name.Replace(" ", "").ToLowerInvariant();
+                existing = existingMarkets.FirstOrDefault(m =>
+                    m.Name.Replace(" ", "").ToLowerInvariant() == norm);
+            }
 
             if (existing is null)
             {
                 dbContext.Markets.Add(new Market
                 {
-                    Name = item.Name,
-                    BaseUrl = item.BaseUrl,
+                    Name              = item.Name,
+                    BaseUrl           = item.BaseUrl,
                     SearchUrlTemplate = item.SearchUrlTemplate,
-                    IsActive = item.IsActive
+                    IsActive          = item.IsActive
                 });
-
                 continue;
             }
 
-            existing.BaseUrl = item.BaseUrl;
-            existing.SearchUrlTemplate = item.SearchUrlTemplate;
-            existing.IsActive = item.IsActive;
+            // BaseUrl / SearchUrlTemplate: sadece mevcut kayıt boşsa doldur
+            if (!string.IsNullOrEmpty(item.BaseUrl) && string.IsNullOrEmpty(existing.BaseUrl))
+                existing.BaseUrl = item.BaseUrl;
+            if (!string.IsNullOrEmpty(item.SearchUrlTemplate) && string.IsNullOrEmpty(existing.SearchUrlTemplate))
+                existing.SearchUrlTemplate = item.SearchUrlTemplate;
+            // Aktif bir marketi pasife çekme; catalog aktifleştirebilir ama devre dışı bırakamaz
+            existing.IsActive = existing.IsActive || item.IsActive;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

@@ -22,6 +22,10 @@ public class Product
     [Display(Name = "Aktif")]
     public bool IsActive { get; set; } = true;
 
+    [StringLength(500)]
+    [Display(Name = "Varsayılan Resim URL")]
+    public string? ImageUrl { get; set; }
+
     [Display(Name = "Kayit Tarihi")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

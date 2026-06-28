@@ -40,7 +40,8 @@
                             @(product.IsActive ? "Aktif" : "Pasif")
                         </span>
                     </td>
-                    <td class="text-end">
+                    <td class="text-end" style="white-space:nowrap">
+                        <a class="btn btn-sm btn-outline-success" asp-action="Links" asp-route-id="@product.Id">URL'ler</a>
                         <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@product.Id">Düzenle</a>
                     </td>
                 </tr>

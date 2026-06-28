@@ -18,6 +18,19 @@
             <input asp-for="Unit" class="form-control" />
         </div>
         <div class="col-12">
+            <label asp-for="ImageUrl" class="form-label">Varsayılan Resim URL'si</label>
+            <div class="d-flex gap-2 align-items-start">
+                <input asp-for="ImageUrl" class="form-control" placeholder="https://..." />
+                @if (!string.IsNullOrWhiteSpace(Model?.ImageUrl))
+                {
+                    <img src="@Model.ImageUrl" alt="önizleme"
+                         style="width:48px;height:48px;object-fit:contain;border-radius:6px;border:1px solid #e5e7eb;background:#f9fafb;flex-shrink:0"
+                         onerror="this.style.display='none'" />
+                }
+            </div>
+            <div class="form-text">Scraper resim bulamazsa bu URL gösterilir. Market ürün resmi veya Wikimedia fotoğrafı olabilir.</div>
+        </div>
+        <div class="col-12">
             <div class="form-check">
                 <input asp-for="IsActive" class="form-check-input" />
                 <label asp-for="IsActive" class="form-check-label"></label>

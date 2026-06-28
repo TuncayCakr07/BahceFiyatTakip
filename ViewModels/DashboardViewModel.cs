@@ -4,19 +4,87 @@ namespace BahceFiyatTakip.ViewModels;
 
 public class DashboardViewModel
 {
-    public int ProductCount { get; set; }
-    public int MarketCount { get; set; }
-    public int PriceRecordCount { get; set; }
-    public IReadOnlyList<ProductPriceSummary> ProductSummaries { get; set; } = [];
+    public List<ProductDashboardRow> ProductRows   { get; set; } = [];
+    public List<MarketColumn>        MatrixMarkets { get; set; } = [];
+    public int TotalProducts  { get; set; }
+    public int TotalMarkets   { get; set; }
+    public int TotalRecords   { get; set; }
+
+    public int VarietiesWithPrice => ProductRows.Sum(r => r.VarietiesWithPrice);
+    public int DropCount          => ProductRows.Sum(r => r.Varieties.Count(v => v.HasPriceDrop));
+    public int RiseCount          => ProductRows.Sum(r => r.Varieties.Count(v => v.HasPriceRise));
+    public int TotalPrices        => ProductRows.Sum(r => r.TotalPriceCount);
+    public DateTime? LastUpdate   => ProductRows
+        .Select(r => r.LastChecked).Where(d => d.HasValue).Select(d => d!.Value)
+        .DefaultIfEmpty().Max() is DateTime dt && dt != default ? dt : null;
+
+    public List<MarketColumn> SpecialtyMarkets  => MatrixMarkets.Where(m => m.IsSpecialty).ToList();
+    public List<MarketColumn> SuperMarkets      => MatrixMarkets.Where(m => !m.IsSpecialty).ToList();
 }
 
-public class ProductPriceSummary
+public class ProductDashboardRow
 {
-    public Product Product { get; set; } = null!;
-    public IReadOnlyList<PriceRecord> Prices { get; set; } = [];
-    public DateTime? LastChecked { get; set; }
-    public decimal? TrendPct { get; set; }
-    public PriceRecord? Cheapest => Prices.Count > 0 ? Prices[0] : null;
-    public bool HasPriceDrop => TrendPct.HasValue && TrendPct.Value < -2m;
-    public bool HasPriceRise => TrendPct.HasValue && TrendPct.Value > 2m;
+    public Product               Product          { get; set; } = null!;
+    public List<MarketColumn>    ProductMarkets   { get; set; } = [];
+    public List<VarietyPriceRow> Varieties        { get; set; } = [];
+    public string?               BestImageUrl     { get; set; }
+    public List<SparkPoint>      ProductSparkline { get; set; } = [];
+
+    public bool  HasAnyPrice        => Varieties.Any(v => v.HasAnyPrice);
+    public int   VarietiesWithPrice => Varieties.Count(v => v.HasAnyPrice);
+    public int   TotalPriceCount    => Varieties.Sum(v => v.MarketPrices.Values.Count(p => p != null));
+
+    public PriceRecord? OverallCheapest => Varieties
+        .Where(v => v.Cheapest != null).Select(v => v.Cheapest!).MinBy(p => p.PricePerKg);
+
+    public decimal? BestTrendPct => Varieties.Where(v => v.TrendPct.HasValue)
+        .Select(v => v.TrendPct!.Value).DefaultIfEmpty()
+        .Min() is decimal t && Varieties.Any(v => v.TrendPct.HasValue) ? t : null;
+
+    public DateTime? LastChecked => Varieties
+        .SelectMany(v => v.MarketPrices.Values).Where(p => p != null)
+        .Select(p => p!.CheckedAt).DefaultIfEmpty()
+        .Max() is DateTime dt && dt != default ? dt : null;
+}
+
+public class VarietyPriceRow
+{
+    public ProductVariety                Variety          { get; set; } = null!;
+    public Dictionary<int, PriceRecord?> MarketPrices    { get; set; } = [];
+    public HashSet<int>                  LinkedMarketIds  { get; set; } = [];
+    public Dictionary<int, string>       MarketDirectUrls { get; set; } = [];
+    public List<SparkPoint>              SparklinePoints  { get; set; } = [];
+    public decimal?                      TrendPct         { get; set; }
+    public SeasonStatus                  Season           { get; set; } = SeasonStatus.Unknown;
+
+    public PriceRecord? Cheapest   => MarketPrices.Values.Where(p => p != null).MinBy(p => p!.PricePerKg);
+    public bool HasAnyPrice        => MarketPrices.Values.Any(p => p != null);
+    public bool HasPriceDrop       => TrendPct.HasValue && TrendPct < -2m;
+    public bool HasPriceRise       => TrendPct.HasValue && TrendPct > 2m;
+
+    public DateTime? LastChecked => MarketPrices.Values.Where(p => p != null)
+        .Select(p => p!.CheckedAt).DefaultIfEmpty()
+        .Max() is DateTime dt && dt != default ? dt : null;
+}
+
+public enum SeasonStatus { Unknown, InSeason, OffSeason, Approaching }
+
+public record SparkPoint(DateTime Date, decimal Price);
+public enum DataFreshness { Fresh, Aging, Stale }
+
+public class MarketColumn
+{
+    public int    Id      { get; set; }
+    public string Name    { get; set; } = "";
+    public string BaseUrl { get; set; } = "";
+
+    private static readonly HashSet<string> SupermarketDomains = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "migros.com.tr", "carrefoursa.com", "a101.com.tr",
+        "sokmarket.com.tr", "filemarket.com.tr", "macrocenter.com.tr",
+        "bim.com.tr", "hakmar.com.tr", "teknosa.com", "mediamarkt.com.tr"
+    };
+
+    public bool IsSpecialty => !SupermarketDomains.Any(d =>
+        BaseUrl.Contains(d, StringComparison.OrdinalIgnoreCase));
 }

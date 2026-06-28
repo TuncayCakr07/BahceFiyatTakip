@@ -1,0 +1,96 @@
+@model BahceFiyatTakip.Models.Product
+
+@{
+    ViewData["Title"] = $"{Model.Name} — URL Yönetimi";
+}
+
+<div class="links-page-header">
+    <a asp-action="Index" class="btn-goto" style="font-size:.78rem;padding:.38rem .8rem">← Ürünler</a>
+    <div>
+        <h1>@Model.Name — URL Yönetimi</h1>
+    </div>
+</div>
+
+@if (TempData["Message"] is string msg)
+{
+    <div class="dash-alert" style="margin-bottom:1.25rem">@msg</div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="dash-alert" style="background:#fef2f2;border-color:#fca5a5;color:#b91c1c;margin-bottom:1.25rem">@err</div>
+}
+
+<p style="font-size:.82rem;color:var(--gray-500);margin:0 0 1.5rem">
+    Her çeşit için herhangi bir siteden ürün URL'si ekleyebilirsiniz. Domain'i bilinen marketler otomatik eşleşir, bilinmeyenler için yeni market oluşturulur.
+</p>
+
+@foreach (var variety in Model.Varieties)
+{
+    <div class="variety-block">
+        <div class="variety-block-header">
+            <div style="display:flex;align-items:center;gap:.55rem">
+                <span class="variety-block-name">@variety.Name</span>
+                <span class="variety-block-id">#@variety.Id</span>
+                @if (!variety.IsActive)
+                {
+                    <span style="font-size:.68rem;background:#fef9c3;color:#92400e;border-radius:4px;padding:.1rem .35rem;font-weight:600">Pasif</span>
+                }
+            </div>
+            <span style="font-size:.75rem;color:var(--gray-400)">@variety.DirectLinks.Count URL</span>
+        </div>
+
+        @if (variety.DirectLinks.Count > 0)
+        {
+            <table class="link-table">
+                <tbody>
+                @foreach (var link in variety.DirectLinks.OrderBy(l => l.Market.Name))
+                {
+                    <tr>
+                        <td style="width:160px">
+                            <span class="link-market-name">@link.Market.Name</span>
+                        </td>
+                        <td class="link-url">
+                            <a href="@link.DirectUrl" target="_blank" rel="noopener noreferrer">@link.DirectUrl</a>
+                        </td>
+                        <td style="width:36px;text-align:center">
+                            @if (!link.IsActive)
+                            {
+                                <span style="font-size:.68rem;color:var(--gray-400)">pasif</span>
+                            }
+                            else
+                            {
+                                <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block"></span>
+                            }
+                        </td>
+                        <td style="width:56px;text-align:right">
+                            <form asp-action="DeleteLink" method="post" style="display:inline" onsubmit="return confirm('URL silinsin mi?')">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="productId" value="@Model.Id" />
+                                <input type="hidden" name="linkId"    value="@link.Id" />
+                                <button type="submit" class="btn-del">Sil</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="empty-links-note">Henüz URL eklenmedi.</div>
+        }
+
+        <div class="add-link-row">
+            <form asp-action="AddLink" method="post" style="display:contents">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="productId"  value="@Model.Id" />
+                <input type="hidden" name="varietyId"  value="@variety.Id" />
+                <input type="url"    name="url"
+                       class="add-link-input"
+                       placeholder="https://www.herhangibirsit.com/urun/..."
+                       required />
+                <button type="submit" class="btn-add-link">+ URL Ekle</button>
+            </form>
+        </div>
+    </div>
+}

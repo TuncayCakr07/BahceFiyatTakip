@@ -20,7 +20,9 @@
                 </svg>
             </button>
         }
-        <a class="brand" asp-controller="Home" asp-action="Index">Bahçe&nbsp;Fiyat</a>
+        <a class="brand" asp-controller="Home" asp-action="Index">
+            <span class="brand-dot"></span>Bahçe&nbsp;Fiyat
+        </a>
         <ul class="nav-links">
             <li><a asp-controller="Home" asp-action="Index"
                    class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")">Fiyatlar</a></li>

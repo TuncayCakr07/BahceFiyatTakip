@@ -37,3 +37,4 @@ Thumbs.db
 **/playwright/
 **/ms-playwright/
 playwright.ps1
+.aider*

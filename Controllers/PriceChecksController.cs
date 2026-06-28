@@ -30,6 +30,22 @@ public class PriceChecksController(
         return RedirectToAction("Index", "Home");
     }
 
+    // AJAX endpoint — JSON döner, redirect yapmaz
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CheckApi(int productId)
+    {
+        try
+        {
+            var saved = await priceTrackingService.CheckAndSavePricesAsync(productId);
+            return Json(new { ok = true, count = saved.Count });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { ok = false, count = 0, error = ex.Message });
+        }
+    }
+
     public async Task<IActionResult> History(int? productId, int? marketId, DateTime? startDate, DateTime? endDate)
     {
         var query = dbContext.PriceRecords
