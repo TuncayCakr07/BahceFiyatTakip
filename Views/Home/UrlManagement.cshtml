@@ -2,6 +2,9 @@
     ViewData["Title"] = "Eksik URL Yönetimi";
 }
 
+@* Antiforgery token AJAX için *@
+<form id="af-form" style="display:none">@Html.AntiForgeryToken()</form>
+
 <div class="container-fluid py-3 px-4">
 
     <div class="d-flex align-items-center gap-3 mb-3">
@@ -46,9 +49,10 @@
 @section Scripts {
 <script>
 (function(){
-    var allRows    = [];
+    var allRows      = [];
     var activeFilter = 'all';
     var searchTerm   = '';
+    var afToken      = (document.querySelector('#af-form input[name="__RequestVerificationToken"]') || {}).value || '';
 
     var STATUS = {
         OkToday:          { label:'Bugün OK',     cls:'text-bg-success',   btnOn:'btn-success',   btnOff:'btn-outline-success'   },
@@ -57,13 +61,13 @@
         MarketInactive:   { label:'Pasif Market',  cls:'text-bg-secondary', btnOn:'btn-secondary', btnOff:'btn-outline-secondary' },
     };
 
-    function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
     function fmtDate(iso){
         if(!iso) return '—';
         var d = new Date(iso);
-        return d.toLocaleDateString('tr-TR', {day:'2-digit',month:'2-digit',year:'numeric'})
-             + ' ' + d.toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit'});
+        return d.toLocaleDateString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric'})
+             + ' ' + d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
     }
 
     function filtered(){
@@ -90,9 +94,16 @@
         }
         tbody.innerHTML = rows.map(function(r){
             var sc  = STATUS[r.status] || {label:r.status, cls:'text-bg-secondary'};
-            var url = r.directUrl
-                ? '<a href="'+esc(r.directUrl)+'" target="_blank" rel="noopener" class="text-truncate d-inline-block" style="max-width:340px" title="'+esc(r.directUrl)+'">'+esc(r.directUrl)+'</a>'
-                : '<span class="text-muted">—</span>';
+            var urlVal = r.directUrl || '';
+            var urlCell = '<div class="d-flex gap-1 align-items-center">'
+                + '<input type="url" class="form-control form-control-sm url-input flex-grow-1"'
+                + ' value="'+esc(urlVal)+'"'
+                + ' data-variety="'+r.varietyId+'" data-market="'+r.marketId+'"'
+                + ' style="font-size:.78em;min-width:180px" placeholder="https://…">'
+                + '<button class="btn btn-sm btn-outline-primary url-save-btn flex-shrink-0"'
+                + ' data-variety="'+r.varietyId+'" data-market="'+r.marketId+'">Kaydet</button>'
+                + '<span class="url-feedback" style="font-size:.75em;min-width:70px;white-space:nowrap"></span>'
+                + '</div>';
             var lastDate = fmtDate(r.lastPriceAt);
             var lastPriceStr = r.lastPrice ? ' <span class="text-muted">· '+r.lastPrice.toFixed(2)+' ₺</span>' : '';
             return '<tr>'
@@ -100,10 +111,65 @@
                 +'<td><span class="text-muted" style="font-size:.82em">'+esc(r.varietyName)+'</span></td>'
                 +'<td>'+esc(r.marketName)+'</td>'
                 +'<td><span class="badge '+sc.cls+'" style="font-size:.75em">'+sc.label+'</span></td>'
-                +'<td style="font-size:.8em">'+url+'</td>'
+                +'<td style="font-size:.8em">'+urlCell+'</td>'
                 +'<td style="font-size:.8em;white-space:nowrap">'+lastDate+lastPriceStr+'</td>'
                 +'</tr>';
         }).join('');
+    }
+
+    // Kaydet butonu — event delegation
+    document.getElementById('um-tbody').addEventListener('click', function(e){
+        var btn = e.target.closest('.url-save-btn');
+        if(!btn) return;
+        var vid = parseInt(btn.dataset.variety);
+        var mid = parseInt(btn.dataset.market);
+        var input = btn.parentElement.querySelector('.url-input');
+        var feedback = btn.nextElementSibling;
+        saveUrl(vid, mid, input ? input.value.trim() : '', btn, feedback);
+    });
+
+    // Enter tuşu ile kaydet
+    document.getElementById('um-tbody').addEventListener('keydown', function(e){
+        if(e.key !== 'Enter') return;
+        var input = e.target.closest('.url-input');
+        if(!input) return;
+        var saveBtn = input.parentElement.querySelector('.url-save-btn');
+        if(saveBtn) saveBtn.click();
+    });
+
+    async function saveUrl(varietyId, marketId, directUrl, btn, feedback){
+        btn.disabled = true;
+        btn.textContent = '…';
+        feedback.textContent = '';
+        try{
+            var resp = await fetch('/Home/SaveDirectUrl', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': afToken
+                },
+                body: JSON.stringify({ varietyId: varietyId, marketId: marketId, directUrl: directUrl })
+            });
+            if(resp.ok){
+                feedback.textContent = '✓ Kaydedildi';
+                feedback.style.color = '#16a34a';
+                // Cache güncelle
+                var row = allRows.find(function(r){ return r.varietyId===varietyId && r.marketId===marketId; });
+                if(row) row.directUrl = directUrl || null;
+                setTimeout(function(){ feedback.textContent=''; }, 3000);
+            } else {
+                var err = await resp.json().catch(function(){ return {}; });
+                feedback.textContent = '✗ ' + (err.error||'Hata');
+                feedback.style.color = '#dc2626';
+                setTimeout(function(){ feedback.textContent=''; }, 4000);
+            }
+        } catch(ex){
+            feedback.textContent = '✗ Bağlantı hatası';
+            feedback.style.color = '#dc2626';
+            setTimeout(function(){ feedback.textContent=''; }, 4000);
+        }
+        btn.disabled  = false;
+        btn.textContent = 'Kaydet';
     }
 
     function renderSummary(data){
@@ -117,25 +183,23 @@
         if(g) g.textContent = 'Oluşturuldu: '+fmtDate(data.generatedAt);
     }
 
-    // Filter buton tıklama
+    // Filter butonları
     document.getElementById('um-filters').addEventListener('click', function(e){
         var btn = e.target.closest('.um-filter-btn');
         if(!btn) return;
         activeFilter = btn.dataset.filter;
         document.querySelectorAll('.um-filter-btn').forEach(function(b){
             var st = STATUS[b.dataset.filter];
-            b.className = 'btn btn-sm um-filter-btn'
-                + (b === btn
-                    ? (st ? ' '+st.btnOn+' active' : ' btn-primary active')
-                    : (st ? ' '+st.btnOff : ' btn-outline-primary'));
-            if(b.dataset.filter === 'all'){
+            if(b.dataset.filter==='all'){
                 b.className = 'btn btn-sm um-filter-btn'+(b===btn?' btn-primary active':' btn-outline-primary');
+            } else {
+                b.className = 'btn btn-sm um-filter-btn'+(b===btn?' '+(st?st.btnOn:'btn-primary')+' active':' '+(st?st.btnOff:'btn-outline-primary'));
             }
         });
         render();
     });
 
-    // Arama kutusu
+    // Arama
     document.getElementById('um-search').addEventListener('input', function(){
         searchTerm = this.value.trim();
         render();

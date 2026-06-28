@@ -89,6 +89,8 @@ public record UrlReportEntry(
     string?  DirectUrl,  string   Status,
     DateTime? LastPriceAt, decimal? LastPrice);
 
+public record SaveDirectUrlRequest(int VarietyId, int MarketId, string? DirectUrl);
+
 public record UrlReportResponse(
     DateTime GeneratedAt,
     int OkTodayCount, int UrlNoPriceCount, int NoUrlCount, int InactiveCount,

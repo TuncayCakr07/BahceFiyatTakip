@@ -301,6 +301,19 @@ public class HomeController : Controller
     [HttpGet]
     public IActionResult UrlManagement() => View();
 
+    // DirectUrl kaydet — AJAX
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveDirectUrl([FromBody] SaveDirectUrlRequest req)
+    {
+        var link = await _dbContext.ProductMarketLinks
+            .FirstOrDefaultAsync(l => l.ProductVarietyId == req.VarietyId && l.MarketId == req.MarketId);
+        if (link == null) return NotFound(new { error = "Kayıt bulunamadı" });
+        link.DirectUrl = req.DirectUrl?.Trim() ?? "";
+        await _dbContext.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
     // Eksik URL Raporu — ProductVariety × Market matrisi
     [HttpGet]
     public async Task<IActionResult> UrlReport()
