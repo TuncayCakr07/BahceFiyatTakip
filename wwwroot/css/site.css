@@ -2262,4 +2262,94 @@ footer.site-footer {
     margin: 0;
     pointer-events: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHEAPEST MARKET CARD
+   ═══════════════════════════════════════════════════════════════════ */
+.cheapest-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    background: #f0fdf4;
+    border-bottom: 1px solid #e2f5e7;
+    flex-wrap: wrap;
+}
+.cheapest-card--empty {
+    background: #fafafa;
+    border-bottom-color: var(--gray-100);
+}
+.cc-badge {
+    font-size: .65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+.cc-badge--today { background: #dcfce7; color: #15803d; }
+.cc-badge--old   { background: #f1f5f9; color: #64748b; }
+.cc-price {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #15803d;
+    flex-shrink: 0;
+}
+.cc-price span { font-size: .75rem; font-weight: 400; color: #64748b; }
+.cc-market {
+    font-size: .82rem;
+    font-weight: 500;
+    color: #1e293b;
+}
+.cc-meta {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: .72rem;
+    color: #94a3b8;
+}
+.cc-link {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.cc-link:hover { text-decoration: underline; }
+.cc-empty {
+    font-size: .8rem;
+    color: #94a3b8;
+}
+
+/* ── 30-Day Trend Badge ── */
+.t30-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+.t30-lbl {
+    font-size: .58rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    opacity: .6;
+    line-height: 1;
+}
+.t30-val {
+    font-size: .78rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.t30-badge--down { background: #f0fdf4; }
+.t30-badge--down .t30-val { color: #16a34a; }
+.t30-badge--up   { background: #fff1f2; }
+.t30-badge--up   .t30-val { color: #dc2626; }
+.t30-badge--flat { background: #f8fafc; }
+.t30-badge--flat .t30-val { color: #94a3b8; }
 .ps-fetch-status { font-style: italic; }

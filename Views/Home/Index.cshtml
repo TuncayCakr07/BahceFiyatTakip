@@ -297,6 +297,34 @@
                 @if (!hasNoPrice || hasLinks)
                 {
                     <div class="ps-body">
+                        @{
+                            var todayCheapest = row.Varieties
+                                .SelectMany(v => v.MarketPrices.Values)
+                                .Where(p => p != null && p.CheckedAt.Date == DateTime.Today)
+                                .MinBy(p => p!.PricePerKg);
+                            var displayCheapest = todayCheapest ?? row.OverallCheapest;
+                            var isTodayPrice    = todayCheapest != null;
+                        }
+                        <div class="cheapest-card @(displayCheapest == null ? "cheapest-card--empty" : "")">
+                            @if (displayCheapest != null)
+                            {
+                                <div class="cc-badge @(isTodayPrice ? "cc-badge--today" : "cc-badge--old")">@(isTodayPrice ? "Bugün" : "Son kayıt")</div>
+                                <div class="cc-price">@displayCheapest.PricePerKg.ToString("N2") <span>₺</span></div>
+                                <div class="cc-market">@displayCheapest.Market.Name</div>
+                                <div class="cc-meta">
+                                    @displayCheapest.CheckedAt.ToLocalTime().ToString("dd.MM HH:mm")
+                                    @if (!string.IsNullOrEmpty(displayCheapest.SourceUrl))
+                                    {
+                                        <a href="@displayCheapest.SourceUrl" target="_blank" rel="noopener" class="cc-link">→ kaynak</a>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="cc-empty">Bugün fiyat yok</span>
+                            }
+                            <div class="t30-badge" id="t30-@row.Product.Id" style="display:none" title="Son 30 günlük fiyat değişimi"></div>
+                        </div>
                         <div class="variety-table-wrap">
                             <table class="variety-table">
                                 <thead>
@@ -753,15 +781,43 @@ function startLoading(btn){
         });
     }
 
+    function computeTrend30(data){
+        if(!data.labels || data.labels.length < 2 || !data.datasets || data.datasets.length === 0) return null;
+        var dailyMins = data.labels.map(function(_, i){
+            var vals = data.datasets.map(function(ds){ return ds.data[i]; })
+                .filter(function(v){ return v !== null && v !== undefined && v > 0; });
+            return vals.length > 0 ? Math.min.apply(null, vals) : null;
+        });
+        var first = null, last = null;
+        for(var i = 0; i < dailyMins.length; i++){ if(dailyMins[i] !== null){ first = dailyMins[i]; break; } }
+        for(var j = dailyMins.length - 1; j >= 0; j--){ if(dailyMins[j] !== null){ last = dailyMins[j]; break; } }
+        if(first === null || last === null || first === 0) return null;
+        return ((last - first) / first) * 100;
+    }
+
+    function renderTrend30(pid, data){
+        var el = document.getElementById('t30-' + pid);
+        if(!el) return;
+        var pct = computeTrend30(data);
+        if(pct === null){ el.style.display = 'none'; return; }
+        var abs = Math.abs(pct).toFixed(1);
+        var dir = pct < -0.5 ? 'down' : pct > 0.5 ? 'up' : 'flat';
+        var arrow = dir === 'down' ? '↓' : dir === 'up' ? '↑' : '→';
+        el.className = 't30-badge t30-badge--' + dir;
+        el.innerHTML = '<span class="t30-lbl">Son 30G</span><span class="t30-val">' + arrow + ' ' + (pct > 0 ? '+' : '') + pct.toFixed(1) + '%</span>';
+        el.style.display = '';
+    }
+
     async function loadChart(pid){
         if(cache[pid]==='loading') return;
-        if(cache[pid] && cache[pid]!=='loading'){ renderChart(pid, cache[pid]); return; }
+        if(cache[pid] && cache[pid]!=='loading'){ renderChart(pid, cache[pid]); renderTrend30(pid, cache[pid]); return; }
         cache[pid]='loading';
         try{
             var r = await fetch('/Home/PriceHistory?productId='+pid);
             var d = await r.json();
             cache[pid] = d;
             renderChart(pid, d);
+            renderTrend30(pid, d);
         } catch(e){ cache[pid]='empty'; showEmpty(pid); }
     }
 
