@@ -444,6 +444,14 @@
                                 </tbody>
                             </table>
                         </div>
+                        @if (row.HasAnyPrice)
+                        {
+                            <div class="ph-wrap" id="ph-@row.Product.Id" data-prodid="@row.Product.Id">
+                                <div class="ph-label">Son 30 Gün</div>
+                                <canvas class="ph-canvas" id="ph-canvas-@row.Product.Id"></canvas>
+                                <p class="ph-empty" style="display:none">Fiyat geçmişi yok</p>
+                            </div>
+                        }
                     </div>
                 }
             </div>
@@ -517,6 +525,7 @@
 }
 
 @section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
 (function(){
     /* ── Sidebar ─────────────────────────────────────────── */
@@ -553,7 +562,10 @@
 
     /* ── Collapse ─────────────────────────────────────────── */
     window.togglePS = function(head){
-        head.closest('.product-section').classList.toggle('ps-collapsed');
+        var section = head.closest('.product-section');
+        section.classList.toggle('ps-collapsed');
+        if (!section.classList.contains('ps-collapsed') && window.loadHistoryChart)
+            window.loadHistoryChart(section);
     };
 
     window.scrollToProd = function(id){
@@ -680,6 +692,95 @@ function startLoading(btn){
     }
 
     runAll();
+})();
+
+/* ═══════════════════════════════════════════════════════
+   PRICE HISTORY — Chart.js entegrasyonu
+   ═══════════════════════════════════════════════════════ */
+(function(){
+    if(typeof Chart === 'undefined') return;
+
+    var COLORS = ['#f97316','#2563eb','#16a34a','#dc2626','#9333ea',
+                  '#d97706','#0891b2','#db2777','#65a30d','#1d4ed8'];
+    var cache  = {};   // productId → data | 'loading' | 'empty'
+    var charts = {};   // productId → Chart instance
+
+    function showEmpty(pid){
+        var wrap = document.getElementById('ph-'+pid);
+        if(!wrap) return;
+        var cv = wrap.querySelector('.ph-canvas');
+        var em = wrap.querySelector('.ph-empty');
+        if(cv) cv.style.display='none';
+        if(em) em.style.display='';
+    }
+
+    function renderChart(pid, data){
+        if(!data.labels || data.labels.length===0 || !data.datasets || data.datasets.length===0){
+            showEmpty(pid); return;
+        }
+        var canvas = document.getElementById('ph-canvas-'+pid);
+        if(!canvas) return;
+        if(charts[pid]){ charts[pid].destroy(); }
+        charts[pid] = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: data.datasets.map(function(ds, i){
+                    return {
+                        label:           ds.marketName,
+                        data:            ds.data,
+                        borderColor:     COLORS[i % COLORS.length],
+                        backgroundColor: 'transparent',
+                        borderWidth:     1.5,
+                        pointRadius:     2,
+                        pointHoverRadius:4,
+                        spanGaps:        false
+                    };
+                })
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position:'bottom', labels:{ font:{size:10}, boxWidth:10, padding:8 } },
+                    tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label+': '+ctx.parsed.y+' ₺'; } } }
+                },
+                scales: {
+                    x: { ticks:{ font:{size:10}, maxTicksLimit:10, maxRotation:0 } },
+                    y: { ticks:{ font:{size:10}, callback:function(v){ return v+' ₺'; } }, beginAtZero:false }
+                }
+            }
+        });
+    }
+
+    async function loadChart(pid){
+        if(cache[pid]==='loading') return;
+        if(cache[pid] && cache[pid]!=='loading'){ renderChart(pid, cache[pid]); return; }
+        cache[pid]='loading';
+        try{
+            var r = await fetch('/Home/PriceHistory?productId='+pid);
+            var d = await r.json();
+            cache[pid] = d;
+            renderChart(pid, d);
+        } catch(e){ cache[pid]='empty'; showEmpty(pid); }
+    }
+
+    window.loadHistoryChart = function(section){
+        if(section.classList.contains('ps-collapsed')) return;
+        var pid = section.dataset.prodid;
+        if(!pid) return;
+        if(!document.getElementById('ph-'+pid)) return;
+        if(cache[pid] && cache[pid]!=='loading') return;
+        loadChart(parseInt(pid));
+    };
+
+    // Viewport'a girince yükle
+    if('IntersectionObserver' in window){
+        var obs = new IntersectionObserver(function(entries){
+            entries.forEach(function(e){ if(e.isIntersecting) window.loadHistoryChart(e.target); });
+        }, { rootMargin:'120px 0px' });
+        document.querySelectorAll('.product-section[data-prodid]').forEach(function(s){ obs.observe(s); });
+    }
 })();
 </script>
 }

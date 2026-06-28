@@ -2228,4 +2228,38 @@ footer.site-footer {
     opacity: .7;
     font-variant-numeric: tabular-nums;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PRICE HISTORY CHART
+   ═══════════════════════════════════════════════════════════════════ */
+.ph-wrap {
+    position: relative;
+    height: 200px;
+    padding: 8px 16px 4px;
+    border-top: 1px solid var(--gray-100);
+}
+.ph-label {
+    font-size: .65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--gray-300);
+    margin-bottom: 4px;
+}
+.ph-canvas {
+    display: block;
+    width: 100% !important;
+    height: calc(100% - 20px) !important;
+}
+.ph-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gray-300);
+    font-size: .8rem;
+    margin: 0;
+    pointer-events: none;
+}
 .ps-fetch-status { font-style: italic; }

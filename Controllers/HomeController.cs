@@ -247,6 +247,56 @@ public class HomeController : Controller
         return approaching ? SeasonStatus.Approaching : SeasonStatus.OffSeason;
     }
 
+    // Son 30 günlük fiyat geçmişi — Chart.js uyumlu JSON
+    [HttpGet]
+    public async Task<IActionResult> PriceHistory(int productId)
+    {
+        var cutoff = DateTime.Now.AddDays(-30).Date;
+
+        var records = await _dbContext.PriceRecords
+            .Include(r => r.Market)
+            .Where(r => r.ProductId == productId && r.CheckedAt >= cutoff)
+            .OrderBy(r => r.CheckedAt)
+            .ToListAsync();
+
+        var productName = await _dbContext.Products
+            .Where(p => p.Id == productId)
+            .Select(p => p.Name)
+            .FirstOrDefaultAsync() ?? "";
+
+        if (records.Count == 0)
+            return Json(new PriceHistoryResponse(productId, productName, [], []));
+
+        // Distinct günler (yerel tarih, artan sıra)
+        var dates = records
+            .Select(r => r.CheckedAt.Date)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+
+        var labels = dates.Select(d => d.ToString("yyyy-MM-dd")).ToList();
+
+        // Market başına, her güne hizalı fiyat dizisi (o gün yoksa null)
+        var datasets = records
+            .GroupBy(r => new { r.MarketId, MarketName = r.Market.Name })
+            .Select(g =>
+            {
+                var byDate = g
+                    .GroupBy(r => r.CheckedAt.Date)
+                    .ToDictionary(x => x.Key, x => x.Min(r => r.PricePerKg));
+
+                var data = dates
+                    .Select(d => byDate.TryGetValue(d, out var p) ? (decimal?)p : null)
+                    .ToList();
+
+                return new PriceHistorySeries(g.Key.MarketId, g.Key.MarketName, data);
+            })
+            .OrderBy(s => s.MarketName)
+            .ToList();
+
+        return Json(new PriceHistoryResponse(productId, productName, labels, datasets));
+    }
+
     public IActionResult Privacy() => View();
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

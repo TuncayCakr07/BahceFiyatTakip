@@ -72,6 +72,14 @@ public enum SeasonStatus { Unknown, InSeason, OffSeason, Approaching }
 public record SparkPoint(DateTime Date, decimal Price);
 public enum DataFreshness { Fresh, Aging, Stale }
 
+// PriceHistory API — Chart.js uyumlu response tipleri
+public record PriceHistorySeries(int MarketId, string MarketName, List<decimal?> Data);
+public record PriceHistoryResponse(
+    int ProductId,
+    string ProductName,
+    List<string> Labels,
+    List<PriceHistorySeries> Datasets);
+
 public class MarketColumn
 {
     public int    Id      { get; set; }
