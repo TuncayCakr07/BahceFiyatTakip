@@ -80,6 +80,20 @@ public record PriceHistoryResponse(
     List<string> Labels,
     List<PriceHistorySeries> Datasets);
 
+// URL Report — Eksik URL Raporu
+// Status: "OkToday" | "UrlExistsNoPrice" | "NoUrl" | "MarketInactive"
+public record UrlReportEntry(
+    int      ProductId,   string   ProductName, string Category,
+    int      VarietyId,  string   VarietyName,
+    int      MarketId,   string   MarketName,  bool MarketActive,
+    string?  DirectUrl,  string   Status,
+    DateTime? LastPriceAt, decimal? LastPrice);
+
+public record UrlReportResponse(
+    DateTime GeneratedAt,
+    int OkTodayCount, int UrlNoPriceCount, int NoUrlCount, int InactiveCount,
+    List<UrlReportEntry> Rows);
+
 public class MarketColumn
 {
     public int    Id      { get; set; }

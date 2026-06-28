@@ -297,6 +297,79 @@ public class HomeController : Controller
         return Json(new PriceHistoryResponse(productId, productName, labels, datasets));
     }
 
+    // Eksik URL Raporu — ProductVariety × Market matrisi
+    [HttpGet]
+    public async Task<IActionResult> UrlReport()
+    {
+        var todayUtc = DateTime.UtcNow.Date;
+        var cutoff   = todayUtc.AddDays(-60);
+
+        var links = await _dbContext.ProductMarketLinks
+            .Include(l => l.Market)
+            .Include(l => l.ProductVariety)
+                .ThenInclude(v => v.Product)
+            .Where(l => l.IsActive
+                     && l.ProductVariety != null
+                     && l.ProductVariety.IsActive
+                     && l.ProductVariety.Product != null
+                     && l.ProductVariety.Product.IsActive)
+            .OrderBy(l => l.ProductVariety.Product.Category)
+            .ThenBy(l => l.ProductVariety.Product.Name)
+            .ThenBy(l => l.ProductVariety.Name)
+            .ThenBy(l => l.Market.Name)
+            .ToListAsync();
+
+        // Son 60 günlük kayıtlar — (productId, marketId) bazında en son fiyat
+        var recentRecords = await _dbContext.PriceRecords
+            .Where(r => r.IsLive && r.CheckedAt >= cutoff)
+            .Select(r => new { r.ProductId, r.MarketId, r.CheckedAt, r.PricePerKg })
+            .OrderByDescending(r => r.CheckedAt)
+            .ToListAsync();
+
+        var todaySet = recentRecords
+            .Where(r => r.CheckedAt >= todayUtc)
+            .Select(r => (r.ProductId, r.MarketId))
+            .ToHashSet();
+
+        var lastByKey = recentRecords
+            .GroupBy(r => (r.ProductId, r.MarketId))
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var rows = links.Select(l =>
+        {
+            var pid = l.ProductVariety.ProductId;
+            var key = (pid, l.MarketId);
+
+            string status;
+            if (!l.Market.IsActive)
+                status = "MarketInactive";
+            else if (string.IsNullOrWhiteSpace(l.DirectUrl))
+                status = "NoUrl";
+            else if (todaySet.Contains(key))
+                status = "OkToday";
+            else
+                status = "UrlExistsNoPrice";
+
+            lastByKey.TryGetValue(key, out var last);
+
+            return new UrlReportEntry(
+                pid, l.ProductVariety.Product.Name, l.ProductVariety.Product.Category,
+                l.ProductVarietyId, l.ProductVariety.Name,
+                l.MarketId, l.Market.Name, l.Market.IsActive,
+                string.IsNullOrWhiteSpace(l.DirectUrl) ? null : l.DirectUrl,
+                status,
+                last?.CheckedAt, last?.PricePerKg);
+        }).ToList();
+
+        return Json(new UrlReportResponse(
+            DateTime.UtcNow,
+            rows.Count(r => r.Status == "OkToday"),
+            rows.Count(r => r.Status == "UrlExistsNoPrice"),
+            rows.Count(r => r.Status == "NoUrl"),
+            rows.Count(r => r.Status == "MarketInactive"),
+            rows));
+    }
+
     public IActionResult Privacy() => View();
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
