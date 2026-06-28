@@ -891,6 +891,32 @@ public partial class LiveMarketPriceProvider(
 
     // ── TYPES ─────────────────────────────────────────────────────────────────
 
+    // DirectUrl test — UrlManagement ekranı için public yardımcı
+    public async Task<(bool Found, string Title, decimal Price, string? Error)> TestDirectUrlAsync(string url)
+    {
+        try
+        {
+            var baseUrl = new Uri(url).GetLeftPart(UriPartial.Authority);
+            using var req  = new HttpRequestMessage(HttpMethod.Get, url);
+            SetHeaders(req, baseUrl);
+            using var resp = await httpClient.SendAsync(req);
+            if (!resp.IsSuccessStatusCode)
+                return (false, "", 0m, $"HTTP {(int)resp.StatusCode}");
+            var body   = await resp.Content.ReadAsStringAsync();
+            var market = new Market { Name = "Test", BaseUrl = baseUrl };
+            var items  = ExtractItems(body, market, url);
+            var best   = items.FirstOrDefault(c => c.InStock) ?? items.FirstOrDefault();
+            if (best == null)
+                return (false, "", 0m, "Fiyat bulunamadı");
+            return (true, best.Title, best.Price, null);
+        }
+        catch (Exception ex)
+        {
+            var msg = ex.Message.Length > 120 ? ex.Message[..120] + "…" : ex.Message;
+            return (false, "", 0m, "Sayfa okunamadı: " + msg);
+        }
+    }
+
     private sealed class Candidate(string title, decimal price, string url, string? imageUrl, bool inStock)
     {
         public string   Title    { get; } = title;

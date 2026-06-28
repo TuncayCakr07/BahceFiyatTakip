@@ -90,6 +90,7 @@ public record UrlReportEntry(
     DateTime? LastPriceAt, decimal? LastPrice);
 
 public record SaveDirectUrlRequest(int VarietyId, int MarketId, string? DirectUrl);
+public record TestDirectUrlRequest(string Url);
 
 public record UrlReportResponse(
     DateTime GeneratedAt,

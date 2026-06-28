@@ -95,7 +95,7 @@
         tbody.innerHTML = rows.map(function(r){
             var sc  = STATUS[r.status] || {label:r.status, cls:'text-bg-secondary'};
             var urlVal = r.directUrl || '';
-            var urlCell = '<div class="d-flex gap-1 align-items-center">'
+            var urlCell = '<div class="d-flex gap-1 align-items-center flex-wrap url-cell">'
                 + '<input type="url" class="form-control form-control-sm url-input flex-grow-1"'
                 + ' value="'+esc(urlVal)+'"'
                 + ' data-variety="'+r.varietyId+'" data-market="'+r.marketId+'"'
@@ -103,6 +103,9 @@
                 + '<button class="btn btn-sm btn-outline-primary url-save-btn flex-shrink-0"'
                 + ' data-variety="'+r.varietyId+'" data-market="'+r.marketId+'">Kaydet</button>'
                 + '<span class="url-feedback" style="font-size:.75em;min-width:70px;white-space:nowrap"></span>'
+                + '<button class="btn btn-sm btn-outline-info url-test-btn flex-shrink-0"'
+                + ' data-variety="'+r.varietyId+'" data-market="'+r.marketId+'">Test Et</button>'
+                + '<span class="url-test-result" style="font-size:.72em;white-space:nowrap"></span>'
                 + '</div>';
             var lastDate = fmtDate(r.lastPriceAt);
             var lastPriceStr = r.lastPrice ? ' <span class="text-muted">· '+r.lastPrice.toFixed(2)+' ₺</span>' : '';
@@ -117,15 +120,23 @@
         }).join('');
     }
 
-    // Kaydet butonu — event delegation
+    // Buton tıklama — event delegation (Kaydet + Test Et)
     document.getElementById('um-tbody').addEventListener('click', function(e){
-        var btn = e.target.closest('.url-save-btn');
-        if(!btn) return;
-        var vid = parseInt(btn.dataset.variety);
-        var mid = parseInt(btn.dataset.market);
-        var input = btn.parentElement.querySelector('.url-input');
-        var feedback = btn.nextElementSibling;
-        saveUrl(vid, mid, input ? input.value.trim() : '', btn, feedback);
+        var saveBtn = e.target.closest('.url-save-btn');
+        if(saveBtn){
+            var vid = parseInt(saveBtn.dataset.variety);
+            var mid = parseInt(saveBtn.dataset.market);
+            var input = saveBtn.closest('.url-cell').querySelector('.url-input');
+            var feedback = saveBtn.nextElementSibling;
+            saveUrl(vid, mid, input ? input.value.trim() : '', saveBtn, feedback);
+            return;
+        }
+        var testBtn = e.target.closest('.url-test-btn');
+        if(testBtn){
+            var input2 = testBtn.closest('.url-cell').querySelector('.url-input');
+            var result = testBtn.nextElementSibling;
+            testUrl(input2 ? input2.value.trim() : '', testBtn, result);
+        }
     });
 
     // Enter tuşu ile kaydet
@@ -136,6 +147,30 @@
         var saveBtn = input.parentElement.querySelector('.url-save-btn');
         if(saveBtn) saveBtn.click();
     });
+
+    async function testUrl(url, btn, result){
+        if(!url){ result.textContent='✗ URL boş'; result.style.color='#dc2626'; return; }
+        btn.disabled=true; btn.textContent='…'; result.textContent='';
+        try{
+            var resp = await fetch('/Home/TestDirectUrl',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','RequestVerificationToken':afToken},
+                body:JSON.stringify({url:url})
+            });
+            var d = await resp.json();
+            if(d.success){
+                result.innerHTML='✓ '+esc(d.title)+' — <b>'+d.price.toFixed(2)+' ₺</b>';
+                result.style.color='#16a34a';
+            } else {
+                result.textContent='✗ '+(d.error||'Fiyat bulunamadı');
+                result.style.color='#dc2626';
+            }
+        } catch(ex){
+            result.textContent='✗ Bağlantı hatası';
+            result.style.color='#dc2626';
+        }
+        btn.disabled=false; btn.textContent='Test Et';
+    }
 
     async function saveUrl(varietyId, marketId, directUrl, btn, feedback){
         btn.disabled = true;

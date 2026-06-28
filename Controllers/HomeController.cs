@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using BahceFiyatTakip.Data;
 using BahceFiyatTakip.Models;
+using BahceFiyatTakip.Services.MarketPrices;
 using BahceFiyatTakip.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,13 +10,15 @@ namespace BahceFiyatTakip.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
-    private readonly ApplicationDbContext    _dbContext;
+    private readonly ILogger<HomeController>  _logger;
+    private readonly ApplicationDbContext     _dbContext;
+    private readonly LiveMarketPriceProvider  _liveProvider;
 
-    public HomeController(ILogger<HomeController> logger, ApplicationDbContext dbContext)
+    public HomeController(ILogger<HomeController> logger, ApplicationDbContext dbContext, LiveMarketPriceProvider liveProvider)
     {
-        _logger    = logger;
-        _dbContext = dbContext;
+        _logger       = logger;
+        _dbContext    = dbContext;
+        _liveProvider = liveProvider;
     }
 
     public async Task<IActionResult> Index()
@@ -300,6 +303,17 @@ public class HomeController : Controller
     // Eksik URL Yönetim Ekranı
     [HttpGet]
     public IActionResult UrlManagement() => View();
+
+    // DirectUrl test — AJAX
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestDirectUrl([FromBody] TestDirectUrlRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Url))
+            return Ok(new { success = false, error = "URL boş" });
+        var (found, title, price, error) = await _liveProvider.TestDirectUrlAsync(req.Url);
+        return Ok(new { success = found, title, price, error });
+    }
 
     // DirectUrl kaydet — AJAX
     [HttpPost]
