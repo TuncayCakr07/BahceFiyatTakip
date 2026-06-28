@@ -297,6 +297,10 @@ public class HomeController : Controller
         return Json(new PriceHistoryResponse(productId, productName, labels, datasets));
     }
 
+    // Eksik URL Yönetim Ekranı
+    [HttpGet]
+    public IActionResult UrlManagement() => View();
+
     // Eksik URL Raporu — ProductVariety × Market matrisi
     [HttpGet]
     public async Task<IActionResult> UrlReport()

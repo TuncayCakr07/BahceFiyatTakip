@@ -1,0 +1,158 @@
+@{
+    ViewData["Title"] = "Eksik URL Yönetimi";
+}
+
+<div class="container-fluid py-3 px-4">
+
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <h5 class="mb-0">Eksik URL Yönetimi</h5>
+        <div id="um-summary" class="d-flex gap-2 flex-wrap"></div>
+        <span class="ms-auto text-muted" style="font-size:.75rem" id="um-generated"></span>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+        <div class="btn-group btn-group-sm" role="group" id="um-filters">
+            <button class="btn btn-primary um-filter-btn active" data-filter="all">Tümü</button>
+            <button class="btn btn-outline-danger  um-filter-btn" data-filter="NoUrl">DirectUrl Yok</button>
+            <button class="btn btn-outline-warning um-filter-btn" data-filter="UrlExistsNoPrice">URL Var Fiyat Yok</button>
+            <button class="btn btn-outline-success um-filter-btn" data-filter="OkToday">Bugün Fiyat Geldi</button>
+            <button class="btn btn-outline-secondary um-filter-btn" data-filter="MarketInactive">Pasif Market</button>
+        </div>
+        <input type="search" id="um-search" class="form-control form-control-sm ms-auto"
+               placeholder="Ürün / çeşit / market ara…" style="max-width:220px">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered table-hover align-middle mb-0" id="um-table">
+            <thead class="table-dark sticky-top">
+                <tr>
+                    <th>Ürün</th>
+                    <th>Çeşit</th>
+                    <th>Market</th>
+                    <th style="width:130px">Durum</th>
+                    <th>DirectUrl</th>
+                    <th style="width:160px">Son Fiyat Tarihi</th>
+                </tr>
+            </thead>
+            <tbody id="um-tbody">
+                <tr><td colspan="6" class="text-center text-muted py-4">Yükleniyor…</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="text-muted mt-2" style="font-size:.75rem" id="um-rowcount"></div>
+</div>
+
+@section Scripts {
+<script>
+(function(){
+    var allRows    = [];
+    var activeFilter = 'all';
+    var searchTerm   = '';
+
+    var STATUS = {
+        OkToday:          { label:'Bugün OK',     cls:'text-bg-success',   btnOn:'btn-success',   btnOff:'btn-outline-success'   },
+        UrlExistsNoPrice: { label:'Fiyat Yok',    cls:'text-bg-warning',   btnOn:'btn-warning',   btnOff:'btn-outline-warning'   },
+        NoUrl:            { label:'URL Yok',       cls:'text-bg-danger',    btnOn:'btn-danger',    btnOff:'btn-outline-danger'    },
+        MarketInactive:   { label:'Pasif Market',  cls:'text-bg-secondary', btnOn:'btn-secondary', btnOff:'btn-outline-secondary' },
+    };
+
+    function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function fmtDate(iso){
+        if(!iso) return '—';
+        var d = new Date(iso);
+        return d.toLocaleDateString('tr-TR', {day:'2-digit',month:'2-digit',year:'numeric'})
+             + ' ' + d.toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit'});
+    }
+
+    function filtered(){
+        return allRows.filter(function(r){
+            if(activeFilter !== 'all' && r.status !== activeFilter) return false;
+            if(searchTerm){
+                var q = searchTerm.toLowerCase();
+                return r.productName.toLowerCase().includes(q)
+                    || r.varietyName.toLowerCase().includes(q)
+                    || r.marketName.toLowerCase().includes(q)
+                    || (r.directUrl||'').toLowerCase().includes(q);
+            }
+            return true;
+        });
+    }
+
+    function render(){
+        var rows = filtered();
+        var tbody = document.getElementById('um-tbody');
+        document.getElementById('um-rowcount').textContent = rows.length + ' satır gösteriliyor';
+        if(!rows.length){
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Kayıt yok</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.map(function(r){
+            var sc  = STATUS[r.status] || {label:r.status, cls:'text-bg-secondary'};
+            var url = r.directUrl
+                ? '<a href="'+esc(r.directUrl)+'" target="_blank" rel="noopener" class="text-truncate d-inline-block" style="max-width:340px" title="'+esc(r.directUrl)+'">'+esc(r.directUrl)+'</a>'
+                : '<span class="text-muted">—</span>';
+            var lastDate = fmtDate(r.lastPriceAt);
+            var lastPriceStr = r.lastPrice ? ' <span class="text-muted">· '+r.lastPrice.toFixed(2)+' ₺</span>' : '';
+            return '<tr>'
+                +'<td>'+esc(r.productName)+'</td>'
+                +'<td><span class="text-muted" style="font-size:.82em">'+esc(r.varietyName)+'</span></td>'
+                +'<td>'+esc(r.marketName)+'</td>'
+                +'<td><span class="badge '+sc.cls+'" style="font-size:.75em">'+sc.label+'</span></td>'
+                +'<td style="font-size:.8em">'+url+'</td>'
+                +'<td style="font-size:.8em;white-space:nowrap">'+lastDate+lastPriceStr+'</td>'
+                +'</tr>';
+        }).join('');
+    }
+
+    function renderSummary(data){
+        document.getElementById('um-summary').innerHTML =
+            '<span class="badge text-bg-primary">'+data.rows.length+' toplam</span>'
+           +'<span class="badge text-bg-success">'+data.okTodayCount+' ok</span>'
+           +'<span class="badge text-bg-warning text-dark">'+data.urlNoPriceCount+' fiyat yok</span>'
+           +'<span class="badge text-bg-danger">'+data.noUrlCount+' url yok</span>'
+           +'<span class="badge text-bg-secondary">'+data.inactiveCount+' pasif</span>';
+        var g = document.getElementById('um-generated');
+        if(g) g.textContent = 'Oluşturuldu: '+fmtDate(data.generatedAt);
+    }
+
+    // Filter buton tıklama
+    document.getElementById('um-filters').addEventListener('click', function(e){
+        var btn = e.target.closest('.um-filter-btn');
+        if(!btn) return;
+        activeFilter = btn.dataset.filter;
+        document.querySelectorAll('.um-filter-btn').forEach(function(b){
+            var st = STATUS[b.dataset.filter];
+            b.className = 'btn btn-sm um-filter-btn'
+                + (b === btn
+                    ? (st ? ' '+st.btnOn+' active' : ' btn-primary active')
+                    : (st ? ' '+st.btnOff : ' btn-outline-primary'));
+            if(b.dataset.filter === 'all'){
+                b.className = 'btn btn-sm um-filter-btn'+(b===btn?' btn-primary active':' btn-outline-primary');
+            }
+        });
+        render();
+    });
+
+    // Arama kutusu
+    document.getElementById('um-search').addEventListener('input', function(){
+        searchTerm = this.value.trim();
+        render();
+    });
+
+    // Veri çek
+    fetch('/Home/UrlReport')
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            allRows = data.rows;
+            renderSummary(data);
+            render();
+        })
+        .catch(function(){
+            document.getElementById('um-tbody').innerHTML =
+                '<tr><td colspan="6" class="text-center text-danger py-3">Veri yüklenemedi.</td></tr>';
+        });
+})();
+</script>
+}
