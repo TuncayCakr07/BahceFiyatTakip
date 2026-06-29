@@ -42,6 +42,8 @@ public class MarketAdapterExecutor(
                     market, directUrl, product.Name, variety?.Name ?? product.Name, variety?.Id, product.Unit, cancellationToken),
                 "GenericTicimaxPriceAdapter" => await GetAdapter<GenericTicimaxPriceAdapter>().TryFetchDirectAsync(
                     market, directUrl, product.Name, variety?.Name ?? product.Name, variety?.Id, product.Unit, cancellationToken),
+                "GenericSapCommercePriceAdapter" => await GetAdapter<GenericSapCommercePriceAdapter>().TryFetchDirectAsync(
+                    market, directUrl, product.Name, variety?.Name ?? product.Name, variety?.Id, product.Unit, cancellationToken),
                 _ => null
             };
         }
@@ -86,6 +88,8 @@ public class MarketAdapterExecutor(
                 "GenericNextJsPriceAdapter" => await GetAdapter<GenericNextJsPriceAdapter>().TryFetchSearchAsync(
                     market, query, product.Name, variety?.Name ?? product.Name, variety?.Id, product.Unit, cancellationToken),
                 "GenericTicimaxPriceAdapter" => await GetAdapter<GenericTicimaxPriceAdapter>().TryFetchSearchAsync(
+                    market, query, product.Name, variety?.Name ?? product.Name, variety?.Id, product.Unit, cancellationToken),
+                "GenericSapCommercePriceAdapter" => await GetAdapter<GenericSapCommercePriceAdapter>().TryFetchSearchAsync(
                     market, query, product.Name, variety?.Name ?? product.Name, variety?.Id, product.Unit, cancellationToken),
                 _ => null
             };

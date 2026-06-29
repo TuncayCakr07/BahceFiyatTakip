@@ -18,9 +18,9 @@ public class MarketAdapterRouter(
             MarketPlatform.GenericJsonLd => ("GenericJsonLdPriceAdapter", true),
             MarketPlatform.GenericNextJs => ("GenericNextJsPriceAdapter", true),
             MarketPlatform.Ticimax      => ("GenericTicimaxPriceAdapter", true),
+            MarketPlatform.SapCommerce  => ("GenericSapCommercePriceAdapter", true),
             
             // Placeholders for future generic adapters
-            MarketPlatform.SapCommerce  => ("GenericSapCommercePriceAdapter", false),
             MarketPlatform.WooCommerce  => ("GenericWooCommercePriceAdapter", false),
             MarketPlatform.IdeaSoft     => ("GenericIdeaSoftPriceAdapter", false),
             MarketPlatform.NopCommerce  => ("GenericNopCommercePriceAdapter", false),

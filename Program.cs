@@ -53,6 +53,10 @@ builder.Services.AddHttpClient<BahceFiyatTakip.Services.MarketPrices.Adapters.Ge
 {
     client.Timeout = TimeSpan.FromSeconds(8);
 });
+builder.Services.AddHttpClient<BahceFiyatTakip.Services.MarketPrices.Adapters.GenericSapCommercePriceAdapter>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(8);
+});
 builder.Services.AddHttpClient<BahceFiyatTakip.Services.MarketPrices.PlatformDetection.IMarketPlatformDetector, BahceFiyatTakip.Services.MarketPrices.PlatformDetection.MarketPlatformDetector>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
