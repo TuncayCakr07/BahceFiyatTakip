@@ -49,6 +49,13 @@ builder.Services.AddHttpClient<BahceFiyatTakip.Services.MarketPrices.Adapters.Ge
 {
     client.Timeout = TimeSpan.FromSeconds(8);
 });
+builder.Services.AddHttpClient<BahceFiyatTakip.Services.MarketPrices.PlatformDetection.IMarketPlatformDetector, BahceFiyatTakip.Services.MarketPrices.PlatformDetection.MarketPlatformDetector>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddScoped<BahceFiyatTakip.Services.MarketPrices.PlatformDetection.PlatformDetectionReportService>();
+builder.Services.AddScoped<BahceFiyatTakip.Services.MarketPrices.Routing.IMarketAdapterRouter, BahceFiyatTakip.Services.MarketPrices.Routing.MarketAdapterRouter>();
+builder.Services.AddScoped<BahceFiyatTakip.Services.MarketPrices.Routing.PlatformRoutingReportService>();
 builder.Services.AddScoped<IMarketPriceProvider, CompositeMarketPriceProvider>();
 
 var app = builder.Build();
