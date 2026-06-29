@@ -17,7 +17,8 @@ public partial class LiveMarketPriceProvider(
     PlaywrightPageFetcher pageFetcher,
     Adapters.MacrocenterPriceAdapter macrocenterAdapter,
     Adapters.MigrosPriceAdapter migrosAdapter,
-    Adapters.CarrefourSAPriceAdapter carrefourSAAdapter) : IMarketPriceProvider
+    Adapters.CarrefourSAPriceAdapter carrefourSAAdapter,
+    Adapters.GenericNextJsPriceAdapter nextJsAdapter) : IMarketPriceProvider
 {
     public string ProviderName => "MarketJson";
 
@@ -143,6 +144,13 @@ public partial class LiveMarketPriceProvider(
                     logger.LogInformation("{Market}: CSA Adapter (direct) başarısız, genel zincir devreye giriyor.", market.Name);
                 }
 
+                // ── Generic Next.js: NextData adapter (DirectUrl) ───────────────────
+                var nextJsDirectResult = await nextJsAdapter.TryFetchDirectAsync(
+                    market, dl.DirectUrl!, product.Name, dTarget.VarietyName,
+                    dTarget.VarietyId, product.Unit, cts.Token);
+                if (nextJsDirectResult is not null)
+                    return nextJsDirectResult;
+
                 logger.LogInformation("{Market}: Direkt URL deneniyor: {Url}", market.Name, dl.DirectUrl);
                 var (dResult, _) = await FetchOneAsync(product, market, dTarget, dl.DirectUrl, cts.Token);
                 if (dResult is not null)
@@ -199,6 +207,16 @@ public partial class LiveMarketPriceProvider(
                         return csaSearchResult;
                 }
                 logger.LogInformation("{Market}: CSA Adapter (search) başarısız, genel zincir devreye giriyor.", market.Name);
+            }
+
+            // ── Generic Next.js: NextData adapter (Search) ────────────────────────
+            foreach (var target in targets.Take(2))
+            {
+                var nextJsSearchResult = await nextJsAdapter.TryFetchSearchAsync(
+                    market, target.Query, product.Name, target.VarietyName,
+                    target.VarietyId, product.Unit, cts.Token);
+                if (nextJsSearchResult is not null)
+                    return nextJsSearchResult;
             }
 
             // ── ADIM 1: HttpClient ile arama ──

@@ -45,6 +45,10 @@ builder.Services.AddHttpClient<BahceFiyatTakip.Services.MarketPrices.Adapters.Ca
 {
     client.Timeout = TimeSpan.FromSeconds(8);
 });
+builder.Services.AddHttpClient<BahceFiyatTakip.Services.MarketPrices.Adapters.GenericNextJsPriceAdapter>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(8);
+});
 builder.Services.AddScoped<IMarketPriceProvider, CompositeMarketPriceProvider>();
 
 var app = builder.Build();
