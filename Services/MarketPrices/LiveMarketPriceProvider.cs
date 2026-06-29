@@ -18,7 +18,8 @@ public partial class LiveMarketPriceProvider(
     Adapters.MacrocenterPriceAdapter macrocenterAdapter,
     Adapters.MigrosPriceAdapter migrosAdapter,
     Adapters.CarrefourSAPriceAdapter carrefourSAAdapter,
-    Adapters.GenericNextJsPriceAdapter nextJsAdapter) : IMarketPriceProvider
+    Adapters.GenericNextJsPriceAdapter nextJsAdapter,
+    Routing.IMarketAdapterExecutor adapterExecutor) : IMarketPriceProvider
 {
     public string ProviderName => "MarketJson";
 
@@ -111,6 +112,13 @@ public partial class LiveMarketPriceProvider(
                               ?? targets.FirstOrDefault();
                 if (dTarget is null) continue;
 
+                // ── ADIM 0.1: Dynamic Executor (Platform-Based) ──
+                var variety = product.Varieties.FirstOrDefault(v => v.Id == dTarget.VarietyId);
+                var executorResult = await adapterExecutor.TryFetchDirectAsync(
+                    market, dl.DirectUrl!, product, variety, cts.Token);
+                if (executorResult is not null)
+                    return executorResult;
+
                 // ── Macrocenter: JSON-LD adapter (ExtractItems zincirinden bağımsız) ──
                 if (market.Name.Equals("Macrocenter", StringComparison.OrdinalIgnoreCase))
                 {
@@ -181,7 +189,18 @@ public partial class LiveMarketPriceProvider(
             if (string.IsNullOrWhiteSpace(market.SearchUrlTemplate))
                 return null;
 
-            // ── Migros: JSON API adapter (Search) ───────────────────────────────────
+            // ── ADIM 0.2: Dynamic Executor (Platform-Based Search) ──
+            foreach (var target in targets.Take(2))
+            {
+                // SearchTarget'tan variety'i bul
+                var variety = product.Varieties.FirstOrDefault(v => v.Id == target.VarietyId);
+                var executorSearchResult = await adapterExecutor.TryFetchSearchAsync(
+                    market, product, variety, cts.Token);
+                if (executorSearchResult is not null)
+                    return executorSearchResult;
+            }
+
+            // ── Migros: JSON API adapter (Search) ──────────────────────────────────
             if (market.Name.Equals("Migros", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var target in targets.Take(2))

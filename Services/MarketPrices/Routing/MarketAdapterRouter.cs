@@ -17,10 +17,10 @@ public class MarketAdapterRouter(
             MarketPlatform.CarrefourSA  => ("CarrefourSAPriceAdapter", true),
             MarketPlatform.GenericJsonLd => ("GenericJsonLdPriceAdapter", true),
             MarketPlatform.GenericNextJs => ("GenericNextJsPriceAdapter", true),
+            MarketPlatform.Ticimax      => ("GenericTicimaxPriceAdapter", true),
             
             // Placeholders for future generic adapters
             MarketPlatform.SapCommerce  => ("GenericSapCommercePriceAdapter", false),
-            MarketPlatform.Ticimax      => ("GenericTicimaxPriceAdapter", false),
             MarketPlatform.WooCommerce  => ("GenericWooCommercePriceAdapter", false),
             MarketPlatform.IdeaSoft     => ("GenericIdeaSoftPriceAdapter", false),
             MarketPlatform.NopCommerce  => ("GenericNopCommercePriceAdapter", false),
