@@ -3,18 +3,20 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using BahceFiyatTakip.Models;
+using BahceFiyatTakip.Services.MarketPrices.Normalization;
+using BahceFiyatTakip.Services.MarketPrices.Validation;
 
 namespace BahceFiyatTakip.Services.MarketPrices.Adapters;
 
 /// <summary>
 /// Macrocenter ürün sayfasındaki JSON-LD (schema.org Product) verisini parse eder.
 /// Yalnızca DirectUrl ile çalışır; SearchUrlTemplate kullanmaz.
+/// Birim normalizasyonu: UnitNormalizer — Doğrulama: ValidationGate.
 /// </summary>
 public partial class MacrocenterPriceAdapter(
     PlaywrightPageFetcher pageFetcher,
     ILogger<MacrocenterPriceAdapter> logger)
 {
-    private static readonly CultureInfo TrCulture = CultureInfo.GetCultureInfo("tr-TR");
     private const string AdapterProvider = "MacrocenterLd";
 
     public async Task<MarketPriceResult?> TryFetchAsync(
@@ -153,34 +155,26 @@ public partial class MacrocenterPriceAdapter(
 
         var imageUrl = ExtractImageUrl(el);
 
-        // ── Doğrulama kapıları ───────────────────────────────────────────────
+        // ── Birim normalizasyonu (UnitNormalizer) ────────────────────────────
 
-        // Kapı 1: Fiyat zorunlu
-        if (price <= 0)
-        {
-            logger.LogDebug("MacrocenterAdapter: Fiyat yok → '{Name}'", name);
-            return null;
-        }
+        var norm      = UnitNormalizer.Normalize(name, price, productUnit);
+        var unitLabel = norm.IsReliable ? norm.NormalizedUnit : "bilinmiyor";
 
-        // Kapı 2: Stok yok → kayıt üretme
-        if (inStock == false)
-        {
-            logger.LogInformation("MacrocenterAdapter: Stok yok → '{Name}'", name);
-            return null;
-        }
+        if (!norm.IsReliable)
+            logger.LogDebug(
+                "MacrocenterAdapter: Birim güvenilir değil — {Reason}. '{Name}'",
+                norm.RejectReason, name);
 
-        // Kapı 3: Birim normalizasyonu
-        var (normalizedPrice, unitLabel) = NormalizePrice(price, name, productUnit);
+        // ── ValidationGate — tüm kurallar burada çalışır ────────────────────
 
-        // Kapı 4: Ürün adı eşleşmesi + güven skoru
-        int confidence = CalculateConfidence(name, productName, varietyName, unitLabel, inStock);
+        var vr = ValidationGate.Validate(new CandidateInput(
+            name, norm.NormalizedPrice, unitLabel, inStock, productName, varietyName));
 
-        // Kapı 5: Düşük güven → kayıt üretme
-        if (confidence < 40)
+        if (!vr.IsValid)
         {
             logger.LogInformation(
-                "MacrocenterAdapter: Düşük güven ({Score}) → '{Name}' / beklenen '{Prod}'",
-                confidence, name, productName);
+                "MacrocenterAdapter: Ret [{Rule}] → {Reason}",
+                vr.FailedRule, vr.RejectReason);
             return null;
         }
 
@@ -188,20 +182,20 @@ public partial class MacrocenterPriceAdapter(
 
         logger.LogInformation(
             "MacrocenterAdapter: ✓ '{Name}' → {Price} TL/{Unit} (confidence:{Score}, inStock:{Stock})",
-            name, normalizedPrice, unitLabel, confidence,
+            name, norm.NormalizedPrice, unitLabel, vr.ConfidenceScore,
             inStock.HasValue ? inStock.Value.ToString() : "?");
 
         return new MarketPriceResult(
             market.Id,
             market.Name,
-            normalizedPrice,
+            norm.NormalizedPrice,
             sourceUrl,
             AdapterProvider,
             IsLive: true,
             ProductVarietyId: varietyId,
             MatchedTitle: name,
             ImageUrl: imageUrl,
-            ConfidenceScore: confidence,
+            ConfidenceScore: vr.ConfidenceScore,
             InStock: inStock);   // null korunur — stok bilinmiyorsa true varsayılmaz
     }
 
@@ -290,81 +284,6 @@ public partial class MacrocenterPriceAdapter(
         return null;
     }
 
-    // ── Birim normalizasyonu ─────────────────────────────────────────────────
-
-    private static (decimal NormalizedPrice, string UnitLabel) NormalizePrice(
-        decimal rawPrice, string productName, string productUnit)
-    {
-        // "1 kg", "1,5 kg", "1.5kg", "0.5 KG"
-        var kgMatch = KgAmountRegex().Match(productName);
-        if (kgMatch.Success)
-        {
-            var amtStr = kgMatch.Groups["a"].Value.Replace(",", ".");
-            if (decimal.TryParse(amtStr, NumberStyles.Number, CultureInfo.InvariantCulture,
-                out var kg) && kg > 0)
-                return (decimal.Round(rawPrice / kg, 2), "kg");
-        }
-
-        // "500 g", "500g", "250 gr", "250 gram"
-        var gMatch = GramAmountRegex().Match(productName);
-        if (gMatch.Success)
-        {
-            if (int.TryParse(gMatch.Groups["a"].Value, out var grams) && grams > 0)
-                return (decimal.Round(rawPrice / (grams / 1000m), 2), "kg");
-        }
-
-        // "2 adet", "3 adet" — fiyatı adete böl
-        var adetMatch = AdetAmountRegex().Match(productName);
-        if (adetMatch.Success)
-        {
-            if (int.TryParse(adetMatch.Groups["a"].Value, out var adet) && adet > 1)
-                return (decimal.Round(rawPrice / adet, 2), "adet");
-            return (rawPrice, "adet");
-        }
-
-        // Sistemdeki ürün birimini fallback olarak kullan
-        var sysUnit = productUnit.ToLower(TrCulture).Trim();
-        if (sysUnit == "adet")                            return (rawPrice, "adet");
-        if (sysUnit is "kg" or "kilo" or "kilogram")      return (rawPrice, "kg");
-
-        return (rawPrice, "bilinmiyor");
-    }
-
-    // ── Güven skoru ───────────────────────────────────────────────────────────
-
-    private static int CalculateConfidence(
-        string matchedName, string productName, string varietyName,
-        string unitLabel,   bool? inStock)
-    {
-        var hay  = N(matchedName);
-        var prod = N(productName);
-        var var_ = N(varietyName);
-
-        int score = 50; // temel: JSON-LD Product bulundu ve fiyat çıkarıldı
-
-        if (ContainsTurkishWord(hay, prod)) score += 20;
-        else score -= 30; // ürün adı başlıkta yok → güçlü ceza
-
-        if (!string.IsNullOrEmpty(var_) && var_ != prod && ContainsTurkishWord(hay, var_))
-            score += 10;
-
-        score += unitLabel switch
-        {
-            "kg" or "adet" => 10,
-            "bilinmiyor"   => -15,
-            _              =>   0,
-        };
-
-        score += inStock switch
-        {
-            true  =>  10,
-            null  =>  -5,
-            false =>   0,
-        };
-
-        return Math.Clamp(score, 0, 100);
-    }
-
     // ── Yardımcı metodlar ────────────────────────────────────────────────────
 
     private static bool IsProductType(JsonElement el)
@@ -393,50 +312,10 @@ public partial class MacrocenterPriceAdapter(
         return null;
     }
 
-    private static string N(string s) =>
-        s.ToLower(TrCulture)
-         .Replace("ı", "i").Replace("ğ", "g").Replace("ü", "u")
-         .Replace("ş", "s").Replace("ö", "o").Replace("ç", "c");
-
-    private static bool ContainsTurkishWord(string hay, string word)
-    {
-        if (string.IsNullOrEmpty(word)) return false;
-        if (word.Length < 4) return hay.Contains(word, StringComparison.Ordinal);
-
-        var idx = hay.IndexOf(word, StringComparison.Ordinal);
-        while (idx >= 0)
-        {
-            bool startOk = idx == 0 || !char.IsLetter(hay[idx - 1]);
-            if (startOk)
-            {
-                int after = idx + word.Length;
-                if (after >= hay.Length || !char.IsLetter(hay[after])) return true;
-                int suf = 0;
-                while (after + suf < hay.Length && char.IsLetter(hay[after + suf]) && suf < 5) suf++;
-                bool endOk = after + suf >= hay.Length || !char.IsLetter(hay[after + suf]);
-                if (endOk && suf is >= 1 and <= 5) return true;
-            }
-            idx = hay.IndexOf(word, idx + 1, StringComparison.Ordinal);
-        }
-        return false;
-    }
-
     // ── Regex'ler ────────────────────────────────────────────────────────────
 
     [GeneratedRegex(
         @"<script[^>]+type=[""']application/ld\+json[""'][^>]*>\s*(?<json>[\s\S]*?)\s*</script>",
         RegexOptions.IgnoreCase)]
     private static partial Regex LdJsonRegex();
-
-    // "1 kg", "1,5 kg", "1.5kg", "2 KG"
-    [GeneratedRegex(@"(?<a>\d+(?:[,\.]\d+)?)\s*kg\b", RegexOptions.IgnoreCase)]
-    private static partial Regex KgAmountRegex();
-
-    // "500 g", "500g", "250 gr", "250 gram"
-    [GeneratedRegex(@"(?<a>\d+)\s*(?:gram|gr|g)\b", RegexOptions.IgnoreCase)]
-    private static partial Regex GramAmountRegex();
-
-    // "2 adet", "3adet"
-    [GeneratedRegex(@"(?<a>\d+)\s*adet\b", RegexOptions.IgnoreCase)]
-    private static partial Regex AdetAmountRegex();
 }
