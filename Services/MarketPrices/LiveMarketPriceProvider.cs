@@ -14,7 +14,8 @@ namespace BahceFiyatTakip.Services.MarketPrices;
 public partial class LiveMarketPriceProvider(
     HttpClient httpClient,
     ILogger<LiveMarketPriceProvider> logger,
-    PlaywrightPageFetcher pageFetcher) : IMarketPriceProvider
+    PlaywrightPageFetcher pageFetcher,
+    Adapters.MacrocenterPriceAdapter macrocenterAdapter) : IMarketPriceProvider
 {
     public string ProviderName => "MarketJson";
 
@@ -106,6 +107,17 @@ public partial class LiveMarketPriceProvider(
                 var dTarget = targets.FirstOrDefault(t => t.VarietyId == dl.ProductVarietyId)
                               ?? targets.FirstOrDefault();
                 if (dTarget is null) continue;
+
+                // ── Macrocenter: JSON-LD adapter (ExtractItems zincirinden bağımsız) ──
+                if (market.Name.Equals("Macrocenter", StringComparison.OrdinalIgnoreCase))
+                {
+                    var mcResult = await macrocenterAdapter.TryFetchAsync(
+                        market, dl.DirectUrl!, product.Name, dTarget.VarietyName,
+                        dTarget.VarietyId, product.Unit, cts.Token);
+                    if (mcResult is not null)
+                        return mcResult;
+                    logger.LogInformation("{Market}: Adapter başarısız, genel zincir devreye giriyor.", market.Name);
+                }
 
                 logger.LogInformation("{Market}: Direkt URL deneniyor: {Url}", market.Name, dl.DirectUrl);
                 var (dResult, _) = await FetchOneAsync(product, market, dTarget, dl.DirectUrl, cts.Token);

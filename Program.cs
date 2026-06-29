@@ -36,6 +36,7 @@ builder.Services.AddHttpClient<BingWebSearchPriceProvider>(client =>
 });
 
 builder.Services.AddSingleton<PlaywrightPageFetcher>();
+builder.Services.AddSingleton<BahceFiyatTakip.Services.MarketPrices.Adapters.MacrocenterPriceAdapter>();
 builder.Services.AddScoped<IMarketPriceProvider, CompositeMarketPriceProvider>();
 
 var app = builder.Build();
