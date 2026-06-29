@@ -16,7 +16,8 @@ public partial class LiveMarketPriceProvider(
     ILogger<LiveMarketPriceProvider> logger,
     PlaywrightPageFetcher pageFetcher,
     Adapters.MacrocenterPriceAdapter macrocenterAdapter,
-    Adapters.MigrosPriceAdapter migrosAdapter) : IMarketPriceProvider
+    Adapters.MigrosPriceAdapter migrosAdapter,
+    Adapters.CarrefourSAPriceAdapter carrefourSAAdapter) : IMarketPriceProvider
 {
     public string ProviderName => "MarketJson";
 
@@ -131,6 +132,17 @@ public partial class LiveMarketPriceProvider(
                     logger.LogInformation("{Market}: Adapter (direct) başarısız, genel zincir devreye giriyor.", market.Name);
                 }
 
+                // ── CarrefourSA: SAP Commerce / JSON-LD adapter (DirectUrl) ──────────
+                if (market.Name.Equals("CarrefourSA", StringComparison.OrdinalIgnoreCase))
+                {
+                    var csaDirectResult = await carrefourSAAdapter.TryFetchDirectAsync(
+                        market, dl.DirectUrl!, product.Name, dTarget.VarietyName,
+                        dTarget.VarietyId, product.Unit, cts.Token);
+                    if (csaDirectResult is not null)
+                        return csaDirectResult;
+                    logger.LogInformation("{Market}: CSA Adapter (direct) başarısız, genel zincir devreye giriyor.", market.Name);
+                }
+
                 logger.LogInformation("{Market}: Direkt URL deneniyor: {Url}", market.Name, dl.DirectUrl);
                 var (dResult, _) = await FetchOneAsync(product, market, dTarget, dl.DirectUrl, cts.Token);
                 if (dResult is not null)
@@ -173,6 +185,20 @@ public partial class LiveMarketPriceProvider(
                         return mgSearchResult;
                 }
                 logger.LogInformation("{Market}: Adapter (search) başarısız, genel zincir devreye giriyor.", market.Name);
+            }
+
+            // ── CarrefourSA: SAP Commerce adapter (Search) ───────────────────────
+            if (market.Name.Equals("CarrefourSA", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var target in targets.Take(2))
+                {
+                    var csaSearchResult = await carrefourSAAdapter.TryFetchSearchAsync(
+                        market, target.Query, product.Name, target.VarietyName,
+                        target.VarietyId, product.Unit, cts.Token);
+                    if (csaSearchResult is not null)
+                        return csaSearchResult;
+                }
+                logger.LogInformation("{Market}: CSA Adapter (search) başarısız, genel zincir devreye giriyor.", market.Name);
             }
 
             // ── ADIM 1: HttpClient ile arama ──

@@ -41,6 +41,10 @@ builder.Services.AddHttpClient<BahceFiyatTakip.Services.MarketPrices.Adapters.Mi
 {
     client.Timeout = TimeSpan.FromSeconds(8);
 });
+builder.Services.AddHttpClient<BahceFiyatTakip.Services.MarketPrices.Adapters.CarrefourSAPriceAdapter>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(8);
+});
 builder.Services.AddScoped<IMarketPriceProvider, CompositeMarketPriceProvider>();
 
 var app = builder.Build();
