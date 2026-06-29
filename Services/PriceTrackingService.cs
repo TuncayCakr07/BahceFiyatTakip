@@ -87,6 +87,7 @@ public async Task<IReadOnlyList<PriceRecord>> CheckAndSavePricesAsync(
             MatchedTitle = result.MatchedTitle,
             SourceProvider = result.ProviderName,
             IsLive = true,
+            InStock = result.InStock,
             ConfidenceScore = result.ConfidenceScore
         }).ToList();
 

@@ -37,7 +37,7 @@ public class HomeController : Controller
 
         var allRecords = await _dbContext.PriceRecords
             .Include(r => r.Market)
-            .Where(r => r.IsLive && r.CheckedAt >= cutoff60)
+            .Where(r => r.IsLive && r.CheckedAt >= cutoff60 && r.InStock != false)
             .OrderByDescending(r => r.CheckedAt)
             .ToListAsync();
 
@@ -353,7 +353,7 @@ public class HomeController : Controller
         // Son 60 günlük kayıtlar — (productId, marketId) bazında en son fiyat
         var recentRecords = await _dbContext.PriceRecords
             .Where(r => r.IsLive && r.CheckedAt >= cutoff)
-            .Select(r => new { r.ProductId, r.MarketId, r.CheckedAt, r.PricePerKg })
+            .Select(r => new { r.ProductId, r.MarketId, r.CheckedAt, r.PricePerKg, r.InStock })
             .OrderByDescending(r => r.CheckedAt)
             .ToListAsync();
 
@@ -371,17 +371,19 @@ public class HomeController : Controller
             var pid = l.ProductVariety.ProductId;
             var key = (pid, l.MarketId);
 
+            lastByKey.TryGetValue(key, out var last);
+
             string status;
             if (!l.Market.IsActive)
                 status = "MarketInactive";
             else if (string.IsNullOrWhiteSpace(l.DirectUrl))
                 status = "NoUrl";
+            else if (last?.InStock == false)
+                status = "OutOfStock";
             else if (todaySet.Contains(key))
                 status = "OkToday";
             else
                 status = "UrlExistsNoPrice";
-
-            lastByKey.TryGetValue(key, out var last);
 
             return new UrlReportEntry(
                 pid, l.ProductVariety.Product.Name, l.ProductVariety.Product.Category,
@@ -389,6 +391,7 @@ public class HomeController : Controller
                 l.MarketId, l.Market.Name, l.Market.IsActive,
                 string.IsNullOrWhiteSpace(l.DirectUrl) ? null : l.DirectUrl,
                 status,
+                l.ProductVariety.Product.Unit,
                 last?.CheckedAt, last?.PricePerKg);
         }).ToList();
 
@@ -398,6 +401,7 @@ public class HomeController : Controller
             rows.Count(r => r.Status == "UrlExistsNoPrice"),
             rows.Count(r => r.Status == "NoUrl"),
             rows.Count(r => r.Status == "MarketInactive"),
+            rows.Count(r => r.Status == "OutOfStock"),
             rows));
     }
 

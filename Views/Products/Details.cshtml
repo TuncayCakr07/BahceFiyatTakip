@@ -1,0 +1,367 @@
+@model BahceFiyatTakip.ViewModels.ProductDashboardRow
+@using System.Globalization
+
+@{
+    ViewData["Title"] = Model.Product.Name + " — Detay";
+    var ic = CultureInfo.InvariantCulture;
+    var unit = Model.Product.Unit.ToLower();
+
+    string TimeAgo(DateTime? dt)
+    {
+        if (dt is null) return "—";
+        var d = DateTime.Now - dt.Value.ToLocalTime();
+        if (d.TotalMinutes < 1)  return "az önce";
+        if (d.TotalMinutes < 60) return $"{(int)d.TotalMinutes} dk önce";
+        if (d.TotalHours < 24)   return $"{(int)d.TotalHours} sa önce";
+        if (d.TotalDays < 7)     return $"{(int)d.TotalDays} gün önce";
+        return $"{(int)(d.TotalDays / 7)} hafta önce";
+    }
+
+    string Sparkline(List<BahceFiyatTakip.ViewModels.SparkPoint> pts, string color, int w = 60, int h = 20)
+    {
+        if (pts.Count < 2)
+            return $@"<svg width=""{w}"" height=""{h}"" viewBox=""0 0 {w} {h}""><line x1=""2"" y1=""{h/2}"" x2=""{w-2}"" y2=""{h/2}"" stroke=""#e2e8f0"" stroke-width=""1.5"" stroke-dasharray=""3,2""/></svg>";
+        var min = pts.Min(p => p.Price); var max = pts.Max(p => p.Price);
+        var range = max - min == 0 ? 1m : max - min;
+        var n = pts.Count;
+        var path = string.Join(" ", pts.Select((p, i) =>
+        {
+            var x = (double)i / (n - 1) * (w - 4) + 2;
+            var y = (h - 4) - (double)((p.Price - min) / range) * (h - 4) + 2;
+            return $"{(i == 0 ? "M" : "L")}{x.ToString("F1", ic)},{y.ToString("F1", ic)}";
+        }));
+        var lx = ((double)(n - 1) / (n - 1) * (w - 4) + 2).ToString("F1", ic);
+        var ly = ((h - 4) - (double)((pts[^1].Price - min) / range) * (h - 4) + 2).ToString("F1", ic);
+        return $@"<svg width=""{w}"" height=""{h}"" viewBox=""0 0 {w} {h}"" class=""sparkline""><path d=""{path}"" fill=""none"" stroke=""{color}"" stroke-width=""1.6"" stroke-linecap=""round"" stroke-linejoin=""round""/><circle cx=""{lx}"" cy=""{ly}"" r=""2"" fill=""{color}""/></svg>";
+    }
+
+    var cheapest = Model.OverallCheapest;
+}
+
+@* ── Antiforgery (TestDirectUrl ve SaveDirectUrl için) ── *@
+<form id="af-form" style="display:none">@Html.AntiForgeryToken()</form>
+
+<div class="container-fluid py-3 px-4">
+
+    @* ── Başlık ─────────────────────────────────────────────────── *@
+    <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+        @if (!string.IsNullOrWhiteSpace(Model.BestImageUrl))
+        {
+            <img src="@Model.BestImageUrl" alt="" style="width:52px;height:52px;object-fit:contain;border-radius:10px;background:#f8fafc;border:1px solid #e5e7eb" onerror="this.style.display='none'" />
+        }
+        <div>
+            <h4 class="mb-0" style="font-weight:800;letter-spacing:-.02em">@Model.Product.Name</h4>
+            <div style="font-size:.78rem;color:#6b7280">
+                @Model.Product.Category &nbsp;·&nbsp; <strong>@Model.Product.Unit</strong>
+                @if (Model.LastChecked.HasValue)
+                {
+                    <span>&nbsp;·&nbsp; @TimeAgo(Model.LastChecked) güncellendi</span>
+                }
+            </div>
+        </div>
+        @if (cheapest != null)
+        {
+            <div class="ms-auto text-end">
+                <div style="font-size:1.6rem;font-weight:900;color:#059669;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums">
+                    @cheapest.PricePerKg.ToString("N2") ₺
+                </div>
+                <div style="font-size:.72rem;color:#6b7280">/ @unit &nbsp;·&nbsp; @cheapest.Market.Name</div>
+            </div>
+        }
+        <a asp-controller="Home" asp-action="Index" class="btn btn-sm btn-outline-secondary ms-2">← Dashboard</a>
+    </div>
+
+    @* ── Çeşit × Market Tablosu ─────────────────────────────────── *@
+    <div class="card mb-3">
+        <div class="card-header py-2" style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6b7280">
+            Market Fiyatları
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0" style="font-size:.845rem">
+                <thead class="table-light">
+                    <tr>
+                        <th>Çeşit</th>
+                        <th style="width:68px;text-align:center">14G</th>
+                        @foreach (var mkt in Model.ProductMarkets)
+                        {
+                            <th style="text-align:right">@mkt.Name</th>
+                        }
+                        <th style="text-align:left">En Ucuz</th>
+                        <th style="width:70px">Trend</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var vrow in Model.Varieties.OrderBy(v => v.HasAnyPrice ? 0 : 1).ThenBy(v => v.Cheapest?.PricePerKg ?? 9999m))
+                    {
+                        var vcheap  = vrow.Cheapest;
+                        var vhasdat = vrow.HasAnyPrice;
+                        <tr style="@(vhasdat ? "" : "opacity:.45")">
+                            <td style="font-weight:600;color:#1f2937">
+                                @vrow.Variety.Name
+                                @if (!string.IsNullOrWhiteSpace(vrow.Variety.Notes))
+                                {
+                                    <span title="@vrow.Variety.Notes" style="font-size:.68rem;color:#9ca3af;cursor:help">ℹ</span>
+                                }
+                            </td>
+                            <td style="text-align:center;padding:.3rem .5rem">
+                                @Html.Raw(Sparkline(vrow.SparklinePoints, vhasdat ? "#059669" : "#e2e8f0"))
+                            </td>
+                            @foreach (var mkt in Model.ProductMarkets)
+                            {
+                                var rec      = vrow.MarketPrices.GetValueOrDefault(mkt.Id);
+                                var isLinked = vrow.LinkedMarketIds.Contains(mkt.Id);
+                                var isBest   = rec != null && vcheap != null && rec.Id == vcheap.Id;
+                                var directUrl = vrow.MarketDirectUrls.GetValueOrDefault(mkt.Id, "");
+                                var cellUrl  = !string.IsNullOrEmpty(rec?.SourceUrl) ? rec!.SourceUrl : directUrl;
+                                <td style="text-align:right;@(isBest ? "background:#f0fdf4;" : "")">
+                                    @if (rec != null)
+                                    {
+                                        <a href="@cellUrl" target="_blank" rel="noopener" style="text-decoration:none;font-variant-numeric:tabular-nums;color:@(isBest ? "#15803d" : "#374151");font-weight:@(isBest ? "800" : "600")">
+                                            @rec.PricePerKg.ToString("N2") <span style="font-size:.65rem;color:#9ca3af;font-weight:400">₺</span>
+                                        </a>
+                                    }
+                                    else if (isLinked)
+                                    {
+                                        <span style="font-size:.72rem;color:#94a3b8;font-style:italic">bekliyor</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#d1d5db">—</span>
+                                    }
+                                </td>
+                            }
+                            <td>
+                                @if (vcheap != null)
+                                {
+                                    <div style="font-size:.95rem;font-weight:800;color:#059669;font-variant-numeric:tabular-nums;letter-spacing:-.02em">
+                                        @vcheap.PricePerKg.ToString("N2") <span style="font-size:.65rem;font-weight:500;color:#9ca3af">₺ / @unit</span>
+                                    </div>
+                                    <div style="font-size:.65rem;color:#9ca3af">@vcheap.Market.Name</div>
+                                }
+                                else
+                                {
+                                    <span style="color:#d1d5db;font-size:.8rem">yok</span>
+                                }
+                            </td>
+                            <td>
+                                @if (vrow.HasPriceDrop)
+                                {
+                                    <span class="trend-badge trend-drop">↓@Math.Abs(vrow.TrendPct!.Value).ToString("N1")%</span>
+                                }
+                                else if (vrow.HasPriceRise)
+                                {
+                                    <span class="trend-badge trend-rise">↑@vrow.TrendPct!.Value.ToString("N1")%</span>
+                                }
+                                else if (vrow.TrendPct.HasValue)
+                                {
+                                    <span style="font-size:.7rem;color:#d1d5db">stabil</span>
+                                }
+                                else
+                                {
+                                    <span style="color:#d1d5db">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ── Fiyat Geçmişi Grafiği ──────────────────────────────────── *@
+    @if (Model.HasAnyPrice)
+    {
+        <div class="card mb-3">
+            <div class="card-header py-2" style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6b7280">
+                Son 30 Gün — Fiyat Geçmişi
+            </div>
+            <div class="card-body" style="height:220px;position:relative;padding:12px 16px 8px">
+                <canvas id="det-chart" style="width:100%!important;height:100%!important"></canvas>
+                <p id="det-chart-empty" style="display:none;position:absolute;inset:0;margin:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:.8rem">Fiyat geçmişi yok</p>
+            </div>
+        </div>
+    }
+
+    @* ── URL Test Alanı ─────────────────────────────────────────── *@
+    <div class="card mb-3">
+        <div class="card-header py-2 d-flex align-items-center gap-2" style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6b7280">
+            <span>URL Yönetimi</span>
+            <a asp-controller="Home" asp-action="UrlManagement" class="ms-auto btn btn-sm btn-outline-secondary" style="font-size:.72rem">Tüm URL Raporu →</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0" style="font-size:.82rem">
+                <thead class="table-light">
+                    <tr>
+                        <th>Çeşit</th>
+                        <th>Market</th>
+                        <th>DirectUrl</th>
+                        <th style="width:80px">Durum</th>
+                        <th style="width:100px">Son Fiyat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var vrow in Model.Varieties)
+                    {
+                        @foreach (var mkt in Model.ProductMarkets)
+                        {
+                            var directUrl = vrow.MarketDirectUrls.GetValueOrDefault(mkt.Id, "");
+                            var isLinked  = vrow.LinkedMarketIds.Contains(mkt.Id);
+                            var rec       = vrow.MarketPrices.GetValueOrDefault(mkt.Id);
+                            if (!isLinked) { continue; }
+                            var googleQuery = Uri.EscapeDataString($"{Model.Product.Name} {vrow.Variety.Name} {unit}");
+                            <tr>
+                                <td style="font-weight:600">@vrow.Variety.Name</td>
+                                <td>@mkt.Name</td>
+                                <td>
+                                    <div class="d-flex gap-1 align-items-center flex-wrap">
+                                        <input type="url" class="form-control form-control-sm det-url-input flex-grow-1"
+                                               value="@directUrl"
+                                               data-variety="@vrow.Variety.Id" data-market="@mkt.Id"
+                                               style="font-size:.76em;min-width:160px" placeholder="https://…" />
+                                        <button class="btn btn-sm btn-outline-primary det-save-btn flex-shrink-0"
+                                                data-variety="@vrow.Variety.Id" data-market="@mkt.Id">Kaydet</button>
+                                        <button class="btn btn-sm btn-outline-info det-test-btn flex-shrink-0"
+                                                data-variety="@vrow.Variety.Id" data-market="@mkt.Id">Test Et</button>
+                                        <a class="btn btn-sm btn-outline-secondary flex-shrink-0"
+                                           href="https://www.google.com/search?q=@googleQuery" target="_blank" rel="noopener">🔍 Google</a>
+                                    </div>
+                                    <div class="det-feedback" data-variety="@vrow.Variety.Id" data-market="@mkt.Id" style="font-size:.72em;margin-top:.2rem;min-height:1em"></div>
+                                </td>
+                                <td>
+                                    @if (rec != null)
+                                    {
+                                        <span class="badge text-bg-success">Fiyat var</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(directUrl))
+                                    {
+                                        <span class="badge text-bg-warning text-dark">Fiyat yok</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-danger">URL yok</span>
+                                    }
+                                </td>
+                                <td style="font-variant-numeric:tabular-nums">
+                                    @if (rec != null)
+                                    {
+                                        <div style="font-weight:700;color:#059669">@rec.PricePerKg.ToString("N2") ₺</div>
+                                        <div style="font-size:.68rem;color:#9ca3af">@rec.CheckedAt.ToLocalTime().ToString("dd.MM HH:mm")</div>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#d1d5db">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+    var afToken = (document.querySelector('#af-form input[name="__RequestVerificationToken"]') || {}).value || '';
+
+    /* ── Fiyat geçmişi grafiği ── */
+    var COLORS = ['#f97316','#2563eb','#16a34a','#dc2626','#9333ea','#d97706','#0891b2','#db2777'];
+    (async function(){
+        if(!document.getElementById('det-chart')) return;
+        try{
+            var r = await fetch('/Home/PriceHistory?productId=@Model.Product.Id');
+            var d = await r.json();
+            if(!d.labels || d.labels.length===0 || !d.datasets || d.datasets.length===0){
+                var e = document.getElementById('det-chart-empty');
+                if(e){ document.getElementById('det-chart').style.display='none'; e.style.display='flex'; }
+                return;
+            }
+            new Chart(document.getElementById('det-chart'), {
+                type: 'line',
+                data: {
+                    labels: d.labels,
+                    datasets: d.datasets.map(function(ds, i){
+                        return {
+                            label: ds.marketName, data: ds.data,
+                            borderColor: COLORS[i % COLORS.length],
+                            backgroundColor: 'transparent', borderWidth: 1.5,
+                            pointRadius: 2, pointHoverRadius: 4, spanGaps: false
+                        };
+                    })
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10, padding: 8 } },
+                        tooltip: { callbacks: { label: function(ctx){ return ctx.dataset.label+': '+ctx.parsed.y+' ₺'; } } }
+                    },
+                    scales: {
+                        x: { ticks: { font: { size: 10 }, maxTicksLimit: 10, maxRotation: 0 } },
+                        y: { ticks: { font: { size: 10 }, callback: function(v){ return v+' ₺'; } }, beginAtZero: false }
+                    }
+                }
+            });
+        } catch(ex){ }
+    })();
+
+    /* ── URL Kaydet / Test Et ── */
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function getFeedback(vid, mid){
+        return document.querySelector('.det-feedback[data-variety="'+vid+'"][data-market="'+mid+'"]');
+    }
+
+    document.querySelectorAll('.det-save-btn').forEach(function(btn){
+        btn.addEventListener('click', async function(){
+            var vid = parseInt(btn.dataset.variety);
+            var mid = parseInt(btn.dataset.market);
+            var input = btn.closest('td').querySelector('.det-url-input');
+            var fb = getFeedback(vid, mid);
+            var url = input ? input.value.trim() : '';
+            btn.disabled = true; btn.textContent = '…'; if(fb) fb.textContent = '';
+            try{
+                var resp = await fetch('/Home/SaveDirectUrl', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': afToken },
+                    body: JSON.stringify({ varietyId: vid, marketId: mid, directUrl: url })
+                });
+                if(resp.ok){ if(fb){ fb.textContent='✓ Kaydedildi'; fb.style.color='#059669'; } }
+                else { if(fb){ fb.textContent='✗ Hata'; fb.style.color='#dc2626'; } }
+            } catch(ex){ if(fb){ fb.textContent='✗ Bağlantı hatası'; fb.style.color='#dc2626'; } }
+            btn.disabled = false; btn.textContent = 'Kaydet';
+            if(fb) setTimeout(function(){ fb.textContent=''; }, 3500);
+        });
+    });
+
+    document.querySelectorAll('.det-test-btn').forEach(function(btn){
+        btn.addEventListener('click', async function(){
+            var vid = parseInt(btn.dataset.variety);
+            var mid = parseInt(btn.dataset.market);
+            var input = btn.closest('td').querySelector('.det-url-input');
+            var fb = getFeedback(vid, mid);
+            var url = input ? input.value.trim() : '';
+            if(!url){ if(fb){ fb.textContent='URL boş'; fb.style.color='#dc2626'; } return; }
+            btn.disabled = true; btn.textContent = '…'; if(fb) fb.textContent = '';
+            try{
+                var resp = await fetch('/Home/TestDirectUrl', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': afToken },
+                    body: JSON.stringify({ url: url })
+                });
+                var d = await resp.json();
+                if(d.success){
+                    if(fb){ fb.innerHTML='✓ '+esc(d.title)+' — <strong>'+d.price.toFixed(2)+' ₺</strong>'; fb.style.color='#059669'; }
+                } else {
+                    if(fb){ fb.textContent='✗ '+(d.error||'Fiyat bulunamadı'); fb.style.color='#dc2626'; }
+                }
+            } catch(ex){ if(fb){ fb.textContent='✗ Bağlantı hatası'; fb.style.color='#dc2626'; } }
+            btn.disabled = false; btn.textContent = 'Test Et';
+        });
+    });
+})();
+</script>
+}

@@ -81,12 +81,12 @@ public record PriceHistoryResponse(
     List<PriceHistorySeries> Datasets);
 
 // URL Report — Eksik URL Raporu
-// Status: "OkToday" | "UrlExistsNoPrice" | "NoUrl" | "MarketInactive"
+// Status: "OkToday" | "UrlExistsNoPrice" | "NoUrl" | "MarketInactive" | "OutOfStock"
 public record UrlReportEntry(
     int      ProductId,   string   ProductName, string Category,
     int      VarietyId,  string   VarietyName,
     int      MarketId,   string   MarketName,  bool MarketActive,
-    string?  DirectUrl,  string   Status,
+    string?  DirectUrl,  string   Status,      string? Unit,
     DateTime? LastPriceAt, decimal? LastPrice);
 
 public record SaveDirectUrlRequest(int VarietyId, int MarketId, string? DirectUrl);
@@ -95,6 +95,7 @@ public record TestDirectUrlRequest(string Url);
 public record UrlReportResponse(
     DateTime GeneratedAt,
     int OkTodayCount, int UrlNoPriceCount, int NoUrlCount, int InactiveCount,
+    int OutOfStockCount,
     List<UrlReportEntry> Rows);
 
 public class MarketColumn

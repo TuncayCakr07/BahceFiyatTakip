@@ -40,5 +40,7 @@ public class PriceRecord
 
     public bool IsLive { get; set; }
 
+    public bool? InStock { get; set; }
+
     public int ConfidenceScore { get; set; }
 }

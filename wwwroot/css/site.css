@@ -2353,3 +2353,30 @@ footer.site-footer {
 .t30-badge--flat { background: #f8fafc; }
 .t30-badge--flat .t30-val { color: #94a3b8; }
 .ps-fetch-status { font-style: italic; }
+
+/* Detay linki — product section head */
+.btn-detail-ps {
+    display: inline-flex;
+    align-items: center;
+    gap: .28rem;
+    padding: .3rem .6rem;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    background: none;
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background .15s, color .15s, border-color .15s;
+    flex-shrink: 0;
+}
+.btn-detail-ps:hover {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+}
+
+/* Birim etiketi — ps-best ve cc-price içinde */
+.ps-best-unit { font-size: .6rem !important; color: var(--gray-400) !important; font-weight: 400 !important; margin-left: .1rem; }
+.cc-unit { font-size: .7rem; color: #94a3b8; font-weight: 400; }

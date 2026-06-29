@@ -1,5 +1,6 @@
 using BahceFiyatTakip.Data;
 using BahceFiyatTakip.Models;
+using BahceFiyatTakip.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -64,6 +65,115 @@ public class ProductsController(ApplicationDbContext dbContext) : Controller
 
         TempData["Message"] = "Urun guncellendi.";
         return RedirectToAction(nameof(Index));
+    }
+
+    // ── DETAY SAYFASI ─────────────────────────────────────────────────────────
+
+    public async Task<IActionResult> Details(int id)
+    {
+        var cutoff60 = DateTime.UtcNow.AddDays(-60);
+        var cutoff14 = DateTime.UtcNow.AddDays(-14);
+
+        var product = await dbContext.Products
+            .Include(p => p.Varieties.Where(v => v.IsActive))
+            .FirstOrDefaultAsync(p => p.Id == id && p.IsActive);
+        if (product is null) return NotFound();
+
+        var prodRecs = await dbContext.PriceRecords
+            .Include(r => r.Market)
+            .Where(r => r.ProductId == id && r.IsLive && r.CheckedAt >= cutoff60 && r.InStock != false)
+            .OrderByDescending(r => r.CheckedAt)
+            .ToListAsync();
+
+        var allVarietyIds = product.Varieties.Select(v => v.Id).ToList();
+        var links = allVarietyIds.Count > 0
+            ? await dbContext.ProductMarketLinks
+                .Include(l => l.Market)
+                .Where(l => l.IsActive && allVarietyIds.Contains(l.ProductVarietyId))
+                .ToListAsync()
+            : new List<ProductMarketLink>();
+
+        var productMarkets = links
+            .Select(l => l.Market)
+            .DistinctBy(m => m.Id)
+            .Select(m => new MarketColumn { Id = m.Id, Name = m.Name, BaseUrl = m.BaseUrl ?? "" })
+            .OrderBy(m => m.IsSpecialty ? 0 : 1)
+            .ThenBy(m => m.Name)
+            .ToList();
+
+        var activeVarieties = product.Varieties.Where(v => v.IsActive).OrderBy(v => v.Name).ToList();
+        var hasVarietyTagged = prodRecs.Any(r => r.ProductVarietyId.HasValue);
+
+        List<ProductVariety> varieties = (activeVarieties.Count == 0 || !hasVarietyTagged)
+            ? [new ProductVariety { Id = 0, Name = "Genel", ProductId = product.Id }]
+            : activeVarieties;
+
+        var varietyRows = varieties.Select(variety =>
+        {
+            var allVarRecs = variety.Id == 0
+                ? prodRecs
+                : prodRecs.Where(r => r.ProductVarietyId == variety.Id).ToList();
+
+            var varietyLinks = variety.Id == 0
+                ? links
+                : links.Where(l => l.ProductVarietyId == variety.Id).ToList();
+
+            var linkedMarketIds  = varietyLinks.Select(l => l.MarketId).ToHashSet();
+            var marketDirectUrls = varietyLinks
+                .GroupBy(l => l.MarketId)
+                .ToDictionary(g => g.Key, g => g.FirstOrDefault(l => !string.IsNullOrEmpty(l.DirectUrl))?.DirectUrl ?? "");
+
+            var marketPrices = productMarkets.ToDictionary(
+                m => m.Id,
+                m => (PriceRecord?)allVarRecs.Where(r => r.MarketId == m.Id).MaxBy(r => r.CheckedAt));
+
+            var spark = allVarRecs
+                .Where(r => r.CheckedAt >= cutoff14)
+                .GroupBy(r => r.CheckedAt.ToLocalTime().Date)
+                .OrderBy(g => g.Key)
+                .Select(g => new SparkPoint(g.Key, g.Min(r => r.PricePerKg)))
+                .ToList();
+
+            decimal? trend = null;
+            var recentBest = allVarRecs.Where(r => r.CheckedAt >= cutoff14).MinBy(r => r.PricePerKg);
+            var olderBest  = allVarRecs.Where(r => r.CheckedAt < cutoff14).MinBy(r => r.PricePerKg);
+            if (recentBest != null && olderBest != null && olderBest.PricePerKg > 0)
+                trend = Math.Round((recentBest.PricePerKg - olderBest.PricePerKg) / olderBest.PricePerKg * 100m, 1);
+
+            return new VarietyPriceRow
+            {
+                Variety          = variety,
+                MarketPrices     = marketPrices,
+                LinkedMarketIds  = linkedMarketIds,
+                MarketDirectUrls = marketDirectUrls,
+                SparklinePoints  = spark,
+                TrendPct         = trend,
+            };
+        }).ToList();
+
+        var productSpark = prodRecs
+            .Where(r => r.CheckedAt >= cutoff14)
+            .GroupBy(r => r.CheckedAt.ToLocalTime().Date)
+            .OrderBy(g => g.Key)
+            .Select(g => new SparkPoint(g.Key, g.Min(r => r.PricePerKg)))
+            .ToList();
+
+        var bestImg = prodRecs
+            .Where(r => !string.IsNullOrWhiteSpace(r.ImageUrl))
+            .OrderByDescending(r => r.CheckedAt)
+            .FirstOrDefault()?.ImageUrl ?? product.ImageUrl;
+
+        var row = new ProductDashboardRow
+        {
+            Product          = product,
+            ProductMarkets   = productMarkets,
+            Varieties        = varietyRows,
+            ProductSparkline = productSpark,
+            BestImageUrl     = bestImg,
+        };
+
+        ViewData["Title"] = product.Name + " — Detay";
+        return View(row);
     }
 
     // ── URL YÖNETİMİ ──────────────────────────────────────────────────────────

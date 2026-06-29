@@ -10,4 +10,5 @@ public record MarketPriceResult(
     int? ProductVarietyId = null,
     string? MatchedTitle = null,
     string? ImageUrl = null,
-    int ConfidenceScore = 0);
+    int ConfidenceScore = 0,
+    bool? InStock = null);

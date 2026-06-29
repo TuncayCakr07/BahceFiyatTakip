@@ -225,7 +225,7 @@
             var hasLinks   = row.ProductMarkets.Count > 0;
             var trendPct   = row.BestTrendPct;
 
-            <div class="product-section @(hasNoPrice ? "ps-no-data" : "")"
+            <div class="product-section @(hasNoPrice ? "ps-no-data" : "ps-collapsed")"
                  id="@prodSlug"
                  data-name="@row.Product.Name.ToLower()"
                  data-prodid="@row.Product.Id"
@@ -272,10 +272,14 @@
                         @if (cheapest != null)
                         {
                             <div class="ps-best">
-                                <span class="ps-best-price">@cheapest.PricePerKg.ToString("N2")<em> ₺</em></span>
+                                <span class="ps-best-price">@cheapest.PricePerKg.ToString("N2")<em> ₺</em><em class="ps-best-unit"> / @row.Product.Unit.ToLower()</em></span>
                                 <span class="ps-best-market">@cheapest.Market.Name</span>
                             </div>
                         }
+                        <a asp-controller="Products" asp-action="Details" asp-route-id="@row.Product.Id" class="btn-detail-ps" onclick="event.stopPropagation()" title="Detay sayfası">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            <span>Detay</span>
+                        </a>
                         @if (trendPct.HasValue)
                         {
                             <span class="trend-badge @(trendPct < -2m ? "trend-drop" : trendPct > 2m ? "trend-rise" : "trend-flat")">
@@ -309,7 +313,7 @@
                             @if (displayCheapest != null)
                             {
                                 <div class="cc-badge @(isTodayPrice ? "cc-badge--today" : "cc-badge--old")">@(isTodayPrice ? "Bugün" : "Son kayıt")</div>
-                                <div class="cc-price">@displayCheapest.PricePerKg.ToString("N2") <span>₺</span></div>
+                                <div class="cc-price">@displayCheapest.PricePerKg.ToString("N2") <span>₺</span> <span class="cc-unit">/ @row.Product.Unit.ToLower()</span></div>
                                 <div class="cc-market">@displayCheapest.Market.Name</div>
                                 <div class="cc-meta">
                                     @displayCheapest.CheckedAt.ToLocalTime().ToString("dd.MM HH:mm")
@@ -440,7 +444,7 @@
                                             <td class="vtd-best">
                                                 @if (vcheap != null)
                                                 {
-                                                    <div class="vt-best-price">@vcheap.PricePerKg.ToString("N2")<span> ₺</span></div>
+                                                    <div class="vt-best-price">@vcheap.PricePerKg.ToString("N2")<span> ₺ / @row.Product.Unit.ToLower()</span></div>
                                                     <div class="vt-best-mkt">@vcheap.Market.Name</div>
                                                 }
                                                 else

@@ -19,6 +19,7 @@
             <button class="btn btn-outline-danger  um-filter-btn" data-filter="NoUrl">DirectUrl Yok</button>
             <button class="btn btn-outline-warning um-filter-btn" data-filter="UrlExistsNoPrice">URL Var Fiyat Yok</button>
             <button class="btn btn-outline-success um-filter-btn" data-filter="OkToday">Bugün Fiyat Geldi</button>
+            <button class="btn btn-outline-secondary um-filter-btn" data-filter="OutOfStock" style="color:#d97706;border-color:#d97706">Stok Yok</button>
             <button class="btn btn-outline-secondary um-filter-btn" data-filter="MarketInactive">Pasif Market</button>
         </div>
         <input type="search" id="um-search" class="form-control form-control-sm ms-auto"
@@ -58,6 +59,7 @@
         OkToday:          { label:'Bugün OK',     cls:'text-bg-success',   btnOn:'btn-success',   btnOff:'btn-outline-success'   },
         UrlExistsNoPrice: { label:'Fiyat Yok',    cls:'text-bg-warning',   btnOn:'btn-warning',   btnOff:'btn-outline-warning'   },
         NoUrl:            { label:'URL Yok',       cls:'text-bg-danger',    btnOn:'btn-danger',    btnOff:'btn-outline-danger'    },
+        OutOfStock:       { label:'Stok Yok',      cls:'text-bg-orange',    btnOn:'btn-orange',    btnOff:'btn-outline-orange'    },
         MarketInactive:   { label:'Pasif Market',  cls:'text-bg-secondary', btnOn:'btn-secondary', btnOff:'btn-outline-secondary' },
     };
 
@@ -95,7 +97,9 @@
         tbody.innerHTML = rows.map(function(r){
             var sc  = STATUS[r.status] || {label:r.status, cls:'text-bg-secondary'};
             var urlVal = r.directUrl || '';
-            var urlCell = '<div class="d-flex gap-1 align-items-center flex-wrap url-cell">'
+            var googleQuery = encodeURIComponent((r.productName+' '+r.varietyName+' '+(r.unit||'kg')).trim());
+        var googleUrl = 'https://www.google.com/search?q='+googleQuery;
+        var urlCell = '<div class="d-flex gap-1 align-items-center flex-wrap url-cell">'
                 + '<input type="url" class="form-control form-control-sm url-input flex-grow-1"'
                 + ' value="'+esc(urlVal)+'"'
                 + ' data-variety="'+r.varietyId+'" data-market="'+r.marketId+'"'
@@ -106,6 +110,7 @@
                 + '<button class="btn btn-sm btn-outline-info url-test-btn flex-shrink-0"'
                 + ' data-variety="'+r.varietyId+'" data-market="'+r.marketId+'">Test Et</button>'
                 + '<span class="url-test-result" style="font-size:.72em;white-space:nowrap"></span>'
+                + '<a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="'+googleUrl+'" target="_blank" rel="noopener" title="Google\'da ara: '+esc(decodeURIComponent(googleQuery))+'">🔍 Google</a>'
                 + '</div>';
             var lastDate = fmtDate(r.lastPriceAt);
             var lastPriceStr = r.lastPrice ? ' <span class="text-muted">· '+r.lastPrice.toFixed(2)+' ₺</span>' : '';
@@ -210,9 +215,10 @@
     function renderSummary(data){
         document.getElementById('um-summary').innerHTML =
             '<span class="badge text-bg-primary">'+data.rows.length+' toplam</span>'
-           +'<span class="badge text-bg-success">'+data.okTodayCount+' ok</span>'
+           +'<span class="badge text-bg-success">'+data.okTodayCount+' bugün ok</span>'
            +'<span class="badge text-bg-warning text-dark">'+data.urlNoPriceCount+' fiyat yok</span>'
            +'<span class="badge text-bg-danger">'+data.noUrlCount+' url yok</span>'
+           +(data.outOfStockCount > 0 ? '<span class="badge" style="background:#fef3c7;color:#92400e">'+data.outOfStockCount+' stok yok</span>' : '')
            +'<span class="badge text-bg-secondary">'+data.inactiveCount+' pasif</span>';
         var g = document.getElementById('um-generated');
         if(g) g.textContent = 'Oluşturuldu: '+fmtDate(data.generatedAt);
