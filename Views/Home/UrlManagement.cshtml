@@ -47,6 +47,30 @@
     <div class="text-muted mt-2" style="font-size:.75rem" id="um-rowcount"></div>
 </div>
 
+@* ── Aday URL Modal ── *@
+<div class="modal fade" id="discoverModal" tabindex="-1" aria-labelledby="discoverModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <div>
+          <h6 class="modal-title mb-0" id="discoverModalLabel">Aday URL'ler</h6>
+          <div class="text-muted" style="font-size:.7rem" id="discoverModalSub"></div>
+        </div>
+        <button type="button" class="btn-close ms-3" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0" id="discoverModalBody">
+        <div class="text-center py-4 text-muted">Yükleniyor…</div>
+      </div>
+      <div class="modal-footer py-1">
+        <span class="text-muted me-auto" style="font-size:.72rem">
+          Market arama sayfasından çıkarılan adaylar. Google linki scraping içermez.
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Kapat</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 @section Scripts {
 <script>
 (function(){
@@ -111,6 +135,16 @@
                 + ' data-variety="'+r.varietyId+'" data-market="'+r.marketId+'">Test Et</button>'
                 + '<span class="url-test-result" style="font-size:.72em;white-space:nowrap"></span>'
                 + '<a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="'+googleUrl+'" target="_blank" rel="noopener" title="Google\'da ara: '+esc(decodeURIComponent(googleQuery))+'">🔍 Google</a>'
+                + (r.status === 'NoUrl'
+                    ? '<button class="btn btn-sm btn-outline-info discover-btn flex-shrink-0"'
+                      + ' data-variety="'+r.varietyId+'"'
+                      + ' data-market="'+r.marketId+'"'
+                      + ' data-product-id="'+(r.productId||0)+'"'
+                      + ' data-product="'+esc(r.productName)+'"'
+                      + ' data-vname="'+esc(r.varietyName)+'"'
+                      + ' data-unit="'+esc(r.unit||'kg')+'"'
+                      + ' data-mname="'+esc(r.marketName)+'">🔎 Aday Bul</button>'
+                    : '')
                 + '</div>';
             var lastDate = fmtDate(r.lastPriceAt);
             var lastPriceStr = r.lastPrice ? ' <span class="text-muted">· '+r.lastPrice.toFixed(2)+' ₺</span>' : '';
@@ -141,6 +175,19 @@
             var input2 = testBtn.closest('.url-cell').querySelector('.url-input');
             var result = testBtn.nextElementSibling;
             testUrl(input2 ? input2.value.trim() : '', testBtn, result);
+            return;
+        }
+        var discBtn = e.target.closest('.discover-btn');
+        if(discBtn){
+            discoverCandidates(
+                parseInt(discBtn.dataset.variety),
+                parseInt(discBtn.dataset.market),
+                parseInt(discBtn.dataset.productId||'0'),
+                discBtn.dataset.product,
+                discBtn.dataset.vname,
+                discBtn.dataset.unit,
+                discBtn.dataset.mname
+            );
         }
     });
 
@@ -258,6 +305,123 @@
             document.getElementById('um-tbody').innerHTML =
                 '<tr><td colspan="6" class="text-center text-danger py-3">Veri yüklenemedi.</td></tr>';
         });
+
+    // ── URL Aday Keşif ───────────────────────────────────────────────────────
+    var discoverCtx = null; // {varietyId, marketId}
+
+    async function discoverCandidates(varietyId, marketId, productId, productName, varietyName, unit, marketName){
+        discoverCtx = { varietyId: varietyId, marketId: marketId };
+        var modalEl   = document.getElementById('discoverModal');
+        var bsModal   = new bootstrap.Modal(modalEl);
+        document.getElementById('discoverModalLabel').textContent =
+            'Aday URL — '+productName+' '+varietyName+' / '+marketName;
+        document.getElementById('discoverModalSub').textContent =
+            'DirectUrl boş olan bu satır için market arama sayfasından URL adayları aranıyor…';
+        document.getElementById('discoverModalBody').innerHTML =
+            '<div class="text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Aranıyor… (max 20 sn)</div>';
+        bsModal.show();
+
+        try {
+            var resp = await fetch('/Home/DiscoverDirectUrlCandidates', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': afToken
+                },
+                body: JSON.stringify({
+                    productId: productId,
+                    varietyId: varietyId,
+                    marketId: marketId,
+                    productName: productName,
+                    varietyName: varietyName,
+                    unit: unit,
+                    marketName: marketName
+                })
+            });
+            if(!resp.ok) throw new Error('HTTP '+resp.status);
+            var candidates = await resp.json();
+            renderCandidates(candidates, productName, varietyName);
+        } catch(ex) {
+            document.getElementById('discoverModalBody').innerHTML =
+                '<div class="text-danger p-3">Hata: '+esc(String(ex.message||ex))+'</div>';
+        }
+    }
+
+    function renderCandidates(candidates, productName, varietyName){
+        document.getElementById('discoverModalSub').textContent =
+            candidates.length + ' aday bulundu • Kullanmak istediğiniz URL için "Kullan" butonuna basın.';
+
+        if(!candidates.length){
+            document.getElementById('discoverModalBody').innerHTML =
+                '<div class="text-muted p-3 text-center">Aday bulunamadı.</div>';
+            return;
+        }
+
+        var html = '<div class="list-group list-group-flush">';
+        candidates.forEach(function(c, idx){
+            var isGoogle = c.source === 'Google';
+            var scoreCls = c.score >= 70 ? 'text-bg-success' :
+                           c.score >= 40 ? 'text-bg-warning text-dark' :
+                           c.score > 0  ? 'text-bg-secondary' : 'text-bg-light text-dark';
+            var shortUrl = c.url.length > 75 ? c.url.slice(0,72)+'…' : c.url;
+
+            html += '<div class="list-group-item py-2 px-3 border-start-0 border-end-0">';
+            html += '<div class="d-flex align-items-start gap-2">';
+            html += '<div class="flex-grow-1" style="min-width:0;overflow:hidden">';
+            html += '<div class="fw-semibold" style="font-size:.85rem;word-break:break-word">'+esc(c.title)+'</div>';
+            if(isGoogle){
+                html += '<a href="'+esc(c.url)+'" target="_blank" rel="noopener noreferrer"'
+                      + ' style="font-size:.72rem;color:#64748b;word-break:break-all">'+esc(shortUrl)+'</a>';
+            } else {
+                html += '<div style="font-size:.72rem;color:#64748b;word-break:break-all">'+esc(shortUrl)+'</div>';
+            }
+            html += '<div style="font-size:.69rem;color:#94a3b8;margin-top:1px">'+esc(c.reason)+'</div>';
+            html += '</div>';
+            html += '<div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">';
+            html += '<span class="badge '+scoreCls+'" style="font-size:.68em">'+c.score+' puan</span>';
+            if(!isGoogle){
+                html += '<div class="d-flex gap-1 mt-1">';
+                html += '<button class="btn btn-xs btn-outline-info cand-test-btn py-0 px-2" style="font-size:.75rem"'
+                      + ' data-url="'+esc(c.url)+'" data-idx="'+idx+'">Test Et</button>';
+                html += '<button class="btn btn-xs btn-success cand-use-btn py-0 px-2" style="font-size:.75rem"'
+                      + ' data-url="'+esc(c.url)+'">Kullan</button>';
+                html += '</div>';
+                html += '<span id="cand-result-'+idx+'" class="cand-result-span" style="font-size:.69rem;text-align:right;max-width:160px;word-break:break-word"></span>';
+            }
+            html += '</div>';
+            html += '</div>';
+            html += '</div>';
+        });
+        html += '</div>';
+        document.getElementById('discoverModalBody').innerHTML = html;
+    }
+
+    // Modal içi buton tıklamaları
+    document.getElementById('discoverModal').addEventListener('click', function(e){
+        var testBtn = e.target.closest('.cand-test-btn');
+        if(testBtn){
+            var url3 = testBtn.dataset.url;
+            var idx3 = testBtn.dataset.idx;
+            var resEl = document.getElementById('cand-result-'+idx3);
+            testUrl(url3, testBtn, resEl);
+            return;
+        }
+        var useBtn = e.target.closest('.cand-use-btn');
+        if(useBtn && discoverCtx){
+            var vid2 = discoverCtx.varietyId;
+            var mid2 = discoverCtx.marketId;
+            var url4 = useBtn.dataset.url;
+            // URL inputunu güncelle
+            var rowInput = document.querySelector('.url-input[data-variety="'+vid2+'"][data-market="'+mid2+'"]');
+            if(rowInput) rowInput.value = url4;
+            // Modali kapat
+            bootstrap.Modal.getInstance(document.getElementById('discoverModal')).hide();
+            // Kaydet
+            var saveBtnEl = document.querySelector('.url-save-btn[data-variety="'+vid2+'"][data-market="'+mid2+'"]');
+            var fbEl      = saveBtnEl ? saveBtnEl.nextElementSibling : null;
+            if(saveBtnEl && fbEl) saveUrl(vid2, mid2, url4, saveBtnEl, fbEl);
+        }
+    });
 })();
 </script>
 }

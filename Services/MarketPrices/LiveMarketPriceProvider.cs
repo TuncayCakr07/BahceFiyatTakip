@@ -917,6 +917,67 @@ public partial class LiveMarketPriceProvider(
         }
     }
 
+    // ── URL DISCOVERY (public, UrlManagement için) ────────────────────────────
+    // SearchUrlTemplate varsa arama sayfasını çekip ürün URL adaylarını döner.
+    // (Title, Url, Score=0, HasPriceData) — Score burada 0; DirectUrlDiscoveryService'de hesaplanır.
+    public async Task<IReadOnlyList<(string Title, string Url, int Score, bool HasPrice)>>
+        FetchSearchLinksAsync(Market market, string query, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(market.SearchUrlTemplate)) return [];
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(12));
+
+        var searchUrl = BuildUrl(market.SearchUrlTemplate, query);
+        logger.LogInformation("{Market}: URL keşfi, query: {Q}", market.Name, query);
+
+        string? html = null;
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, searchUrl);
+            SetHeaders(req, market.BaseUrl);
+            using var resp = await httpClient.SendAsync(req, cts.Token);
+            if (resp.IsSuccessStatusCode)
+                html = await resp.Content.ReadAsStringAsync(cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            logger.LogInformation("{Market}: URL keşfi HttpClient başarısız: {Msg}", market.Name, ex.Message);
+        }
+
+        if (html is null && pageFetcher.IsAvailable)
+        {
+            try
+            {
+                var (rendered, wooLinks) = await pageFetcher.FetchWithLinksAsync(
+                    searchUrl, "a.woocommerce-loop-product__link", cts.Token);
+                html = rendered;
+
+                if (wooLinks.Count > 0)
+                    return wooLinks.Take(8).Select(u => ("", u, 0, false)).ToList();
+            }
+            catch (Exception ex)
+            {
+                logger.LogInformation("{Market}: URL keşfi Playwright başarısız: {Msg}", market.Name, ex.Message);
+            }
+        }
+
+        if (html is null) return [];
+
+        var items = ExtractItems(html, market, searchUrl);
+        if (items.Count > 0)
+            return items.Take(8).Select(c => (c.Title, c.Url, c.Score, c.Price > 0)).ToList();
+
+        if (NopCommercePriceExtractor.IsMatch(html))
+        {
+            var links = ExtractNopCommerceLinks(html, market.BaseUrl);
+            return links.Take(8).Select(u => ("", u, 0, false)).ToList();
+        }
+
+        return [];
+    }
+
     private sealed class Candidate(string title, decimal price, string url, string? imageUrl, bool inStock)
     {
         public string   Title    { get; } = title;

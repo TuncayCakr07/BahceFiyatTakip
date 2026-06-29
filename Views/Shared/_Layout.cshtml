@@ -23,13 +23,19 @@
         <a class="brand" asp-controller="Home" asp-action="Index">
             <span class="brand-dot"></span>Bahçe&nbsp;Fiyat
         </a>
+        @{
+            var ctrl   = ViewContext.RouteData.Values["controller"]?.ToString();
+            var action = ViewContext.RouteData.Values["action"]?.ToString();
+        }
         <ul class="nav-links">
             <li><a asp-controller="Home" asp-action="Index"
-                   class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "Home" ? "active" : "")">Fiyatlar</a></li>
+                   class="@(ctrl == "Home" && action != "Health" && action != "UrlManagement" ? "active" : "")">Fiyatlar</a></li>
             <li><a asp-controller="PriceChecks" asp-action="Index"
-                   class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "PriceChecks" ? "active" : "")">Fiyat Güncelle</a></li>
+                   class="@(ctrl == "PriceChecks" ? "active" : "")">Fiyat Güncelle</a></li>
             <li><a asp-controller="Products" asp-action="Index"
-                   class="@(ViewContext.RouteData.Values["controller"]?.ToString() == "Products" ? "active" : "")">Ürünler</a></li>
+                   class="@(ctrl == "Products" ? "active" : "")">Ürünler</a></li>
+            <li><a asp-controller="Home" asp-action="Health"
+                   class="@(ctrl == "Home" && action == "Health" ? "active" : "")">Sağlık</a></li>
         </ul>
     </nav>
 

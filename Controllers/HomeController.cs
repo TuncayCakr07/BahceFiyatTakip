@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using BahceFiyatTakip.Data;
 using BahceFiyatTakip.Models;
+using BahceFiyatTakip.Services;
 using BahceFiyatTakip.Services.MarketPrices;
 using BahceFiyatTakip.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -10,15 +11,21 @@ namespace BahceFiyatTakip.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly ILogger<HomeController>  _logger;
-    private readonly ApplicationDbContext     _dbContext;
-    private readonly LiveMarketPriceProvider  _liveProvider;
+    private readonly ILogger<HomeController>      _logger;
+    private readonly ApplicationDbContext         _dbContext;
+    private readonly LiveMarketPriceProvider      _liveProvider;
+    private readonly MarketHealthService          _healthService;
+    private readonly DirectUrlDiscoveryService    _discoveryService;
 
-    public HomeController(ILogger<HomeController> logger, ApplicationDbContext dbContext, LiveMarketPriceProvider liveProvider)
+    public HomeController(ILogger<HomeController> logger, ApplicationDbContext dbContext,
+        LiveMarketPriceProvider liveProvider, MarketHealthService healthService,
+        DirectUrlDiscoveryService discoveryService)
     {
-        _logger       = logger;
-        _dbContext    = dbContext;
-        _liveProvider = liveProvider;
+        _logger           = logger;
+        _dbContext        = dbContext;
+        _liveProvider     = liveProvider;
+        _healthService    = healthService;
+        _discoveryService = discoveryService;
     }
 
     public async Task<IActionResult> Index()
@@ -403,6 +410,25 @@ public class HomeController : Controller
             rows.Count(r => r.Status == "MarketInactive"),
             rows.Count(r => r.Status == "OutOfStock"),
             rows));
+    }
+
+    // Extractor Health Dashboard
+    [HttpGet]
+    public async Task<IActionResult> Health()
+    {
+        var data = await _healthService.GetHealthAsync();
+        return View(data);
+    }
+
+    // Direct URL Discovery
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> DiscoverDirectUrlCandidates(
+        [FromBody] DiscoverCandidatesRequest req)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        var candidates = await _discoveryService.DiscoverAsync(
+            req.MarketId, req.ProductName, req.VarietyName, req.Unit, cts.Token);
+        return Json(candidates);
     }
 
     public IActionResult Privacy() => View();

@@ -1,0 +1,275 @@
+@model List<BahceFiyatTakip.ViewModels.MarketHealthInfo>
+@using BahceFiyatTakip.ViewModels
+
+@{
+    ViewData["Title"] = "Extractor Sağlık Durumu";
+
+    int healthyCount = Model.Count(h => h.Status == HealthStatus.Healthy);
+    int warningCount = Model.Count(h => h.Status == HealthStatus.Warning);
+    int failedCount  = Model.Count(h => h.Status == HealthStatus.Failed);
+    int unknownCount = Model.Count(h => h.Status == HealthStatus.Unknown);
+
+    string StatusCls(HealthStatus s) => s switch
+    {
+        HealthStatus.Healthy => "text-bg-success",
+        HealthStatus.Warning => "text-bg-warning",
+        HealthStatus.Failed  => "text-bg-danger",
+        _                    => "text-bg-secondary",
+    };
+
+    string StatusLabel(HealthStatus s) => s switch
+    {
+        HealthStatus.Healthy => "Healthy",
+        HealthStatus.Warning => "Warning",
+        HealthStatus.Failed  => "Failed",
+        _                    => "Unknown",
+    };
+
+    string StatusIcon(HealthStatus s) => s switch
+    {
+        HealthStatus.Healthy => "🟢",
+        HealthStatus.Warning => "🟡",
+        HealthStatus.Failed  => "🔴",
+        _                    => "⚪",
+    };
+
+    string FmtDate(DateTime? dt)
+    {
+        if (!dt.HasValue) return "—";
+        var d = DateTime.Now - dt.Value.ToLocalTime();
+        if (d.TotalMinutes < 1)  return "az önce";
+        if (d.TotalMinutes < 60) return $"{(int)d.TotalMinutes} dk önce";
+        if (d.TotalHours < 24)   return $"{(int)d.TotalHours} sa önce";
+        if (d.TotalDays < 2)     return "Dün";
+        if (d.TotalDays < 7)     return $"{(int)d.TotalDays} gün önce";
+        return dt.Value.ToLocalTime().ToString("dd.MM.yyyy");
+    }
+
+    string RateBarCls(double rate) => rate >= 90 ? "bg-success" : rate >= 60 ? "bg-warning" : "bg-danger";
+}
+
+<div class="container-fluid py-3 px-4">
+
+    @* ── Başlık ── *@
+    <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+        <h5 class="mb-0 fw-bold">Extractor Sağlık Durumu</h5>
+        <span class="text-muted" style="font-size:.75rem">Son 7 gün • Aktif günler bazlı başarı oranı</span>
+        <a asp-controller="Home" asp-action="UrlManagement" class="ms-auto btn btn-sm btn-outline-secondary">URL Yönetimi →</a>
+    </div>
+
+    @* ── KPI Özet ── *@
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card text-center py-2 border-success border-opacity-50">
+                <div class="fs-4 fw-bold text-success">@healthyCount</div>
+                <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em">Healthy</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center py-2 border-warning border-opacity-50">
+                <div class="fs-4 fw-bold text-warning">@warningCount</div>
+                <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em">Warning</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center py-2 border-danger border-opacity-50">
+                <div class="fs-4 fw-bold text-danger">@failedCount</div>
+                <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em">Failed</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center py-2">
+                <div class="fs-4 fw-bold text-secondary">@unknownCount</div>
+                <div class="text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em">Unknown</div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Araç çubuğu ── *@
+    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+        <div class="btn-group btn-group-sm" id="hlt-filters">
+            <button class="btn btn-primary hlt-filter active"   data-filter="all">Tümü (@Model.Count)</button>
+            <button class="btn btn-outline-danger  hlt-filter"  data-filter="Failed">🔴 Failed (@failedCount)</button>
+            <button class="btn btn-outline-warning hlt-filter"  data-filter="Warning">🟡 Warning (@warningCount)</button>
+            <button class="btn btn-outline-success hlt-filter"  data-filter="Healthy">🟢 Healthy (@healthyCount)</button>
+            <button class="btn btn-outline-secondary hlt-filter" data-filter="Unknown">⚪ Unknown (@unknownCount)</button>
+        </div>
+        <input type="search" id="hlt-search" class="form-control form-control-sm ms-auto"
+               placeholder="Market ara…" style="max-width:200px" />
+        <span class="text-muted" style="font-size:.72rem" id="hlt-count">@Model.Count market</span>
+    </div>
+
+    @* ── Tablo ── *@
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered table-hover align-middle mb-0" id="hlt-table" style="font-size:.845rem">
+            <thead class="table-dark sticky-top">
+                <tr>
+                    <th class="sortable" data-col="0" style="cursor:pointer;user-select:none">
+                        Market <span class="sort-arrow">↕</span>
+                    </th>
+                    <th class="sortable" data-col="1" style="cursor:pointer;user-select:none;width:120px">
+                        Son Başarı <span class="sort-arrow">↕</span>
+                    </th>
+                    <th class="sortable" data-col="2" style="cursor:pointer;user-select:none;width:110px">
+                        Son Hata <span class="sort-arrow">↕</span>
+                    </th>
+                    <th class="sortable" data-col="3" style="cursor:pointer;user-select:none;width:130px">
+                        Başarı Oranı <span class="sort-arrow">↕</span>
+                    </th>
+                    <th style="width:80px;text-align:center">Ort. Cevap</th>
+                    <th class="sortable" data-col="5" style="cursor:pointer;user-select:none;width:100px;text-align:center">
+                        Durum <span class="sort-arrow">↕</span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="hlt-tbody">
+                @foreach (var h in Model)
+                {
+                    <tr data-status="@StatusLabel(h.Status)"
+                        data-name="@h.MarketName.ToLower()"
+                        data-rate="@h.SuccessRate.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)"
+                        data-success-ts="@(h.LastSuccessAt.HasValue ? h.LastSuccessAt.Value.Ticks.ToString() : "0")"
+                        data-failure-ts="@(h.LastFailureAt.HasValue ? h.LastFailureAt.Value.Ticks.ToString() : "0")"
+                        data-status-order="@(h.Status switch { HealthStatus.Failed => 0, HealthStatus.Warning => 1, HealthStatus.Unknown => 2, _ => 3 })">
+                        <td style="font-weight:600">
+                            @h.MarketName
+                            <div style="font-size:.68rem;color:#9ca3af;font-weight:400">
+                                @h.SuccessCount başarı / @(h.SuccessCount + h.FailureCount) gün
+                            </div>
+                        </td>
+                        <td style="font-size:.8rem;white-space:nowrap">
+                            @if (h.LastSuccessAt.HasValue)
+                            {
+                                <span title="@h.LastSuccessAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">@FmtDate(h.LastSuccessAt)</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td style="font-size:.8rem;white-space:nowrap">
+                            @if (h.LastFailureAt.HasValue)
+                            {
+                                <span class="text-danger" title="@h.LastFailureAt.Value.ToLocalTime().ToString("dd.MM.yyyy")">@FmtDate(h.LastFailureAt)</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td>
+                            @if (h.Status != HealthStatus.Unknown)
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height:6px;border-radius:3px;min-width:60px">
+                                        <div class="progress-bar @RateBarCls(h.SuccessRate)"
+                                             style="width:@h.SuccessRate.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)%"></div>
+                                    </div>
+                                    <span style="font-variant-numeric:tabular-nums;font-size:.82rem;font-weight:700;white-space:nowrap;min-width:38px;text-align:right">
+                                        @h.SuccessRate.ToString("N1")%
+                                    </span>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted" style="font-size:.8rem">Veri yok</span>
+                            }
+                        </td>
+                        <td style="text-align:center;color:#9ca3af;font-size:.78rem">—</td>
+                        <td style="text-align:center">
+                            <span class="badge @StatusCls(h.Status)" style="font-size:.75em;padding:.3rem .6rem">
+                                @StatusIcon(h.Status) @StatusLabel(h.Status)
+                            </span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="text-muted mt-2" style="font-size:.72rem">
+        Oluşturuldu: @DateTime.Now.ToString("dd.MM.yyyy HH:mm") &nbsp;·&nbsp;
+        Metodoloji: Sistemin aktif olduğu günlerde bu marketin kayıt üretip üretmediğine bakılır.
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function(){
+    var rows    = Array.from(document.querySelectorAll('#hlt-tbody tr'));
+    var tbody   = document.getElementById('hlt-tbody');
+    var search  = document.getElementById('hlt-search');
+    var counter = document.getElementById('hlt-count');
+    var activeFilter = 'all';
+    var sortCol = -1, sortAsc = true;
+
+    function applyAll(){
+        var q = search.value.trim().toLowerCase();
+        var vis = 0;
+        rows.forEach(function(r){
+            var statusMatch = activeFilter === 'all' || r.dataset.status === activeFilter;
+            var nameMatch   = !q || r.dataset.name.includes(q);
+            var show = statusMatch && nameMatch;
+            r.style.display = show ? '' : 'none';
+            if(show) vis++;
+        });
+        counter.textContent = vis + ' market';
+    }
+
+    // Filtre butonları
+    document.getElementById('hlt-filters').addEventListener('click', function(e){
+        var btn = e.target.closest('.hlt-filter');
+        if(!btn) return;
+        activeFilter = btn.dataset.filter;
+        document.querySelectorAll('.hlt-filter').forEach(function(b){
+            b.classList.toggle('active', b === btn);
+            b.className = b.className.replace(/ btn-(primary|outline-danger|outline-warning|outline-success|outline-secondary)\b/g,'');
+            if(b === btn){
+                b.classList.add(activeFilter === 'all' ? 'btn-primary' :
+                    activeFilter === 'Failed' ? 'btn-danger' :
+                    activeFilter === 'Warning' ? 'btn-warning' :
+                    activeFilter === 'Healthy' ? 'btn-success' : 'btn-secondary');
+            } else {
+                b.classList.add(activeFilter === 'all' ? 'btn-outline-primary' :
+                    b.dataset.filter === 'Failed' ? 'btn-outline-danger' :
+                    b.dataset.filter === 'Warning' ? 'btn-outline-warning' :
+                    b.dataset.filter === 'Healthy' ? 'btn-outline-success' : 'btn-outline-secondary');
+            }
+        });
+        applyAll();
+    });
+
+    // Arama
+    search.addEventListener('input', applyAll);
+
+    // Sıralama
+    document.querySelectorAll('.sortable').forEach(function(th){
+        th.addEventListener('click', function(){
+            var col = parseInt(th.dataset.col);
+            if(sortCol === col) sortAsc = !sortAsc; else { sortCol = col; sortAsc = true; }
+
+            document.querySelectorAll('.sort-arrow').forEach(function(a){ a.textContent='↕'; });
+            th.querySelector('.sort-arrow').textContent = sortAsc ? '↑' : '↓';
+
+            rows.sort(function(a, b){
+                var av, bv;
+                if(col === 0){
+                    av = a.dataset.name; bv = b.dataset.name;
+                } else if(col === 1){
+                    av = parseInt(a.dataset.successTs||'0'); bv = parseInt(b.dataset.successTs||'0');
+                } else if(col === 2){
+                    av = parseInt(a.dataset.failureTs||'0'); bv = parseInt(b.dataset.failureTs||'0');
+                } else if(col === 3){
+                    av = parseFloat(a.dataset.rate||'0'); bv = parseFloat(b.dataset.rate||'0');
+                } else {
+                    av = parseInt(a.dataset.statusOrder||'0'); bv = parseInt(b.dataset.statusOrder||'0');
+                }
+                if(av < bv) return sortAsc ? -1 : 1;
+                if(av > bv) return sortAsc ?  1 : -1;
+                return 0;
+            });
+            rows.forEach(function(r){ tbody.appendChild(r); });
+        });
+    });
+})();
+</script>
+}

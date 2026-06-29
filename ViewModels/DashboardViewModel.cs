@@ -92,11 +92,34 @@ public record UrlReportEntry(
 public record SaveDirectUrlRequest(int VarietyId, int MarketId, string? DirectUrl);
 public record TestDirectUrlRequest(string Url);
 
+// ── Direct URL Discovery ──────────────────────────────────────────────────
+public record DiscoverCandidatesRequest(
+    int ProductId, int VarietyId, int MarketId,
+    string ProductName, string VarietyName, string Unit, string MarketName);
+
+public record UrlCandidate(string Title, string Url, string Source, int Score, string Reason);
+
 public record UrlReportResponse(
     DateTime GeneratedAt,
     int OkTodayCount, int UrlNoPriceCount, int NoUrlCount, int InactiveCount,
     int OutOfStockCount,
     List<UrlReportEntry> Rows);
+
+// ── Extractor Health ─────────────────────────────────────────────────────
+public enum HealthStatus { Unknown, Healthy, Warning, Failed }
+
+public class MarketHealthInfo
+{
+    public int       MarketId          { get; set; }
+    public string    MarketName        { get; set; } = "";
+    public DateTime? LastSuccessAt     { get; set; }
+    public DateTime? LastFailureAt     { get; set; }
+    public int       SuccessCount      { get; set; }
+    public int       FailureCount      { get; set; }
+    public double    SuccessRate       { get; set; }
+    public int       AverageResponseMs { get; set; } // -1 = not tracked
+    public HealthStatus Status         { get; set; }
+}
 
 public class MarketColumn
 {

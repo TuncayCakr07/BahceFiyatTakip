@@ -17,6 +17,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddScoped<IPriceTrackingService, PriceTrackingService>();
+builder.Services.AddScoped<MarketHealthService>();
+builder.Services.AddScoped<DirectUrlDiscoveryService>();
 
 builder.Services.AddHttpClient<LiveMarketPriceProvider>(client =>
 {
