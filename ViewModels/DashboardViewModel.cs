@@ -2,26 +2,8 @@ using BahceFiyatTakip.Models;
 
 namespace BahceFiyatTakip.ViewModels;
 
-public class DashboardViewModel
-{
-    public List<ProductDashboardRow> ProductRows   { get; set; } = [];
-    public List<MarketColumn>        MatrixMarkets { get; set; } = [];
-    public int TotalProducts  { get; set; }
-    public int TotalMarkets   { get; set; }
-    public int TotalRecords   { get; set; }
-
-    public int VarietiesWithPrice => ProductRows.Sum(r => r.VarietiesWithPrice);
-    public int DropCount          => ProductRows.Sum(r => r.Varieties.Count(v => v.HasPriceDrop));
-    public int RiseCount          => ProductRows.Sum(r => r.Varieties.Count(v => v.HasPriceRise));
-    public int TotalPrices        => ProductRows.Sum(r => r.TotalPriceCount);
-    public DateTime? LastUpdate   => ProductRows
-        .Select(r => r.LastChecked).Where(d => d.HasValue).Select(d => d!.Value)
-        .DefaultIfEmpty().Max() is DateTime dt && dt != default ? dt : null;
-
-    public List<MarketColumn> SpecialtyMarkets  => MatrixMarkets.Where(m => m.IsSpecialty).ToList();
-    public List<MarketColumn> SuperMarkets      => MatrixMarkets.Where(m => !m.IsSpecialty).ToList();
-}
-
+// NOT: Ana sayfa özeti için bkz. HomeSummaryViewModel.
+// ProductDashboardRow / VarietyPriceRow, Products/Details sayfası tarafından da kullanılır.
 public class ProductDashboardRow
 {
     public Product               Product          { get; set; } = null!;
